@@ -8,8 +8,7 @@ radio amateurs to enable LoRa with high transmission power and thus long range o
 First code for the LoRaHAM Pi hardware | https://www.loraham.de/produkt/loraham-pi/
 
 
-![LoRaHAM_Pi](https://github.com/LoRaHAM/LoRaHAM_Pi/blob/main/LoRaHAM_P1_3.jpg?raw=true)
-![LoRaHAM Cartridge](https://github.com/LoRaHAM/LoRaHAM_Ressources/blob/main/LoRaHAM_Cartridge_for_pi500.png?raw=true)
+<img src="https://github.com/LoRaHAM/LoRaHAM_Pi/blob/main/LoRaHAM_P1_3.jpg" alt="LoRaHAM_Pi" width="300" height="auto"><img src="https://github.com/LoRaHAM/LoRaHAM_Ressources/blob/main/LoRaHAM_Cartridge_for_pi500.png" alt="LoRaHAM Cartridge" width="300" height="auto">
 
 * Raspberry Pi 3/4/5
 * Raspbian Image on RPi
@@ -154,8 +153,7 @@ LoRaHAM_Daemon ist eine Raspberry Pi Software für das Hardware-Upgrade-Projekt 
 
 Erster Code für die LoRaHAM Pi Hardware | https://www.loraham.de/produkt/loraham-pi/
 
-![LoRaHAM_Pi](https://github.com/LoRaHAM/LoRaHAM_Pi/blob/main/LoRaHAM_P1_3.jpg?raw=true)
-![LoRaHAM Cartridge](https://github.com/LoRaHAM/LoRaHAM_Ressources/blob/main/LoRaHAM_Cartridge_for_pi500.png?raw=true)
+<img src="https://github.com/LoRaHAM/LoRaHAM_Pi/blob/main/LoRaHAM_P1_3.jpg" alt="LoRaHAM_Pi" width="300" height="auto"><img src="https://github.com/LoRaHAM/LoRaHAM_Ressources/blob/main/LoRaHAM_Cartridge_for_pi500.png" alt="LoRaHAM Cartridge" width="300" height="auto">
 
 * Raspberry Pi 3/4/5
 * Raspbian Image auf RPi
