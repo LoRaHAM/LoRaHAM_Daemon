@@ -16,7 +16,7 @@ First code for the LoRaHAM Pi hardware | https://www.loraham.de/produkt/loraham-
 
 Need follow parts on the Raspberry Pi image:
 
-```bash
+
 sudo apt update
 sudo apt install g++ make cmake build-essential -y
 sudo apt install liblgpio-dev -y
