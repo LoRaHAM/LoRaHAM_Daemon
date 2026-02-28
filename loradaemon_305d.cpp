@@ -911,11 +911,11 @@ int main(int argc, char *argv[]) {
         umask(0);
         chdir("/");
 
-        // Standard-Dateideskriptoren schließen oder umleiten
-        // Hier: Nur Schließen, um Ausgaben im Hintergrund zu unterdrücken
-        close(STDIN_FILENO);
-        close(STDOUT_FILENO);
-        close(STDERR_FILENO);
+        // FIX: Deskriptoren nicht einfach schließen, sondern umleiten
+        // Das verhindert, dass neue Sockets die IDs 0, 1 oder 2 einnehmen.
+        freopen("/dev/null", "r", stdin);
+        freopen("/tmp/lora_daemon.log", "w", stdout); // Optional: In Datei loggen
+        freopen("/tmp/lora_daemon.log", "w", stderr);
     }
 
     data433_fd = setup_unix_socket(DATA433_SOCKET);
