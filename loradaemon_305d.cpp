@@ -128,22 +128,22 @@ int client_conf868[MAX_CLIENTS] = {0};
 #define PIN_868 19
 
 // --- LoRa Setup ---
-PiHal* hal_433 = new PiHal(0); // SPI0
-//Module mod_433 = Module(hal_433, RADIOLIB_NC, 25, 5, 24); // DIO0=8, CS=25, RESET=5, IRQ=24
-Module mod_433 = Module(hal_433, 8, 25, 5, 24); // DIO0=8, CS=25, RESET=5, IRQ=24
-SX1278 radio_433 = RFM98(&mod_433);
+PiHal* hal_433 = nullptr;
+Module* mod_433 = nullptr;
+SX1278* radio_433 = nullptr;
 
-PiHal* hal_868 = new PiHal(0); // SPI0
-//Module mod_868 = Module(hal_868, RADIOLIB_NC, 16, 6, 12);
-Module mod_868 = Module(hal_868, 7, 16, 6, 12);
-RFM95 radio_868 = SX1276(&mod_868);
+PiHal* hal_868 = nullptr;
+Module* mod_868 = nullptr;
+RFM95* radio_868 = nullptr;
 
-
-int h = lgGpiochipOpen(0);
+int h = -1;
 int chip = -1;
 
 // --- Initialisierung der LEDs ---
 void LED_init() {
+    h = lgGpiochipOpen(0);
+    chip = h; // chip bekommt den Wert von h
+
     chip = lgGpiochipOpen(0);
     if (chip < 0) {
         printf("Fehler: gpiochip0 konnte nicht geöffnet werden!\n");
@@ -257,32 +257,32 @@ void lora_send(uint8_t *buf, size_t len, int band) {
 
         // WICHTIG: RX-Flag clearen und Callback deaktivieren!
         receivedFlag433 = false;
-        radio_433.clearPacketReceivedAction();
+        radio_433->clearPacketReceivedAction();
 
         // Radio komplett in Standby und zurücksetzen
-        radio_433.standby();
-        radio_433.clearIrq(0xFFFFFFFF);
+        radio_433->standby();
+        radio_433->clearIrq(0xFFFFFFFF);
 
         // TX-FIFO komplett zurücksetzen!
         // Erst in Sleep, dann Standby - das löscht die FIFOs
-        radio_433.sleep();
+        radio_433->sleep();
         usleep(10000); // 10ms warten
-        radio_433.standby();
+        radio_433->standby();
         usleep(10000); // nochmal 10ms
 /*
         // WICHTIG: LoRa-Parameter nochmal setzen (für TX!)
-        radio_433.setFrequency(433.775);
-        radio_433.setSpreadingFactor(12);
-        radio_433.setBandwidth(125.0);
-        radio_433.setCodingRate(5);
-        radio_433.setSyncWord(0x12);
-        radio_433.setPreambleLength(8);
-        radio_433.setCRC(true);
-        radio_433.explicitHeader();
-        radio_433.setOutputPower(10);
+        radio_433->setFrequency(433.775);
+        radio_433->setSpreadingFactor(12);
+        radio_433->setBandwidth(125.0);
+        radio_433->setCodingRate(5);
+        radio_433->setSyncWord(0x12);
+        radio_433->setPreambleLength(8);
+        radio_433->setCRC(true);
+        radio_433->explicitHeader();
+        radio_433->setOutputPower(10);
 */
         // Nochmal IRQs clearen
-        radio_433.clearIrq(0xFFFFFFFF);
+        radio_433->clearIrq(0xFFFFFFFF);
 
         printf("[433] Radio neu konfiguriert für TX\n");
         printf("[433] Sende jetzt %zu Bytes (0x%02X 0x%02X 0x%02X 0x%02X 0x%02X 0x%02X 0x%02X)...\n",
@@ -290,7 +290,7 @@ void lora_send(uint8_t *buf, size_t len, int band) {
                len > 5 ? send_buf[5] : 0, len > 6 ? send_buf[6] : 0);
 
         // Zurück zu transmit() - das sollte blockierend sein
-        int state = radio_433.transmit(send_buf, len);
+        int state = radio_433->transmit(send_buf, len);
 
         if(state != RADIOLIB_ERR_NONE) {
             printf("[433] transmit ERROR: %d\n", state);
@@ -304,12 +304,12 @@ void lora_send(uint8_t *buf, size_t len, int band) {
 //        usleep(1000000); // 1 Sekunde!
 
         // Nach dem Senden: Buffer clearen und Callback wieder aktivieren
-        radio_433.clearIrq(0xFFFFFFFF);
+        radio_433->clearIrq(0xFFFFFFFF);
         receivedFlag433 = false;
-        radio_433.setPacketReceivedAction(setFlag433);
+        radio_433->setPacketReceivedAction(setFlag433);
 
         txBusy433 = false;
-        radio_433.startReceive();
+        radio_433->startReceive();
 
     } else if (band == 868) {
         if(txBusy868) {
@@ -320,14 +320,14 @@ void lora_send(uint8_t *buf, size_t len, int band) {
 
         // WICHTIG: RX-Flag clearen und Callback deaktivieren!
         receivedFlag868 = false;
-        radio_868.clearPacketReceivedAction();
+        radio_868->clearPacketReceivedAction();
 
         // WICHTIG: FIFO und IRQ flags clearen VOR dem Senden!
-        radio_868.standby();
-        radio_868.clearIrq(0xFFFFFFFF);
+        radio_868->standby();
+        radio_868->clearIrq(0xFFFFFFFF);
 
         // WICHTIG: transmit() ist blockierend und wartet bis fertig!
-        int state = radio_868.transmit(send_buf, len);
+        int state = radio_868->transmit(send_buf, len);
 
         if(state != RADIOLIB_ERR_NONE) {
             printf("[868] TX ERROR: %d\n", state);
@@ -339,12 +339,12 @@ void lora_send(uint8_t *buf, size_t len, int band) {
         usleep(50000); // 50ms Sicherheitspause
 
         // Nach dem Senden: Buffer clearen und Callback wieder aktivieren
-        radio_868.clearIrq(0xFFFFFFFF);
+        radio_868->clearIrq(0xFFFFFFFF);
         receivedFlag868 = false;
-        radio_868.setPacketReceivedAction(setFlag868);
+        radio_868->setPacketReceivedAction(setFlag868);
 
         txBusy868 = false;
-        radio_868.startReceive();
+        radio_868->startReceive();
     }
 }
 
@@ -357,10 +357,10 @@ void lora_send(uint8_t *buf, size_t len, int band) {
 
     if (band == 433) {
         // Buffer leeren vor Senden
-        radio_433.clearIrq(0xFFFFFFFF);  // ← FIX: clearIrq()
-        radio_433.standby();
+        radio_433->clearIrq(0xFFFFFFFF);  // ← FIX: clearIrq()
+        radio_433->standby();
 
-        int state = radio_433.transmit(buf, len);
+        int state = radio_433->transmit(buf, len);
         if (state != RADIOLIB_ERR_NONE) {
             printf("[433] TRANSMIT FEHLER: %d\n", state);
         } else {
@@ -371,14 +371,14 @@ void lora_send(uint8_t *buf, size_t len, int band) {
         usleep(100000);  // 100ms
 
         // Zurück zu RX
-        radio_433.clearIrq(0xFFFFFFFF);  // ← FIX: clearIrq()
-        radio_433.startReceive();
+        radio_433->clearIrq(0xFFFFFFFF);  // ← FIX: clearIrq()
+        radio_433->startReceive();
 
     } else if (band == 868) {
-        radio_868.clearIrq(0xFFFFFFFF);  // ← FIX: clearIrq()
-        radio_868.standby();
+        radio_868->clearIrq(0xFFFFFFFF);  // ← FIX: clearIrq()
+        radio_868->standby();
 
-        int state = radio_868.transmit(buf, len);
+        int state = radio_868->transmit(buf, len);
         if (state != RADIOLIB_ERR_NONE) {
             printf("[868] TRANSMIT FEHLER: %d\n", state);
         } else {
@@ -386,8 +386,8 @@ void lora_send(uint8_t *buf, size_t len, int band) {
         }
 
         usleep(100000);
-        radio_868.clearIrq(0xFFFFFFFF);  // ← FIX: clearIrq()
-        radio_868.startReceive();
+        radio_868->clearIrq(0xFFFFFFFF);  // ← FIX: clearIrq()
+        radio_868->startReceive();
     }
 }
 */
@@ -395,13 +395,13 @@ void lora_send(uint8_t *buf, size_t len, int band) {
 /*
 void lora_send(uint8_t *buf, size_t len, int band) {
     if (band == 433) {
-        if (radio_433.transmit(buf, len) != RADIOLIB_ERR_NONE){
+        if (radio_433->transmit(buf, len) != RADIOLIB_ERR_NONE){
             printf("[433] Fehler beim Senden!\n");}else{
-            radio_433.startReceive();}
+            radio_433->startReceive();}
     } else if (band == 868) {
-        if (radio_868.transmit(buf, len) != RADIOLIB_ERR_NONE){
+        if (radio_868->transmit(buf, len) != RADIOLIB_ERR_NONE){
             printf("[868] Fehler beim Senden!\n");}else{
-            radio_868.startReceive();}
+            radio_868->startReceive();}
     }
 }
 */
@@ -780,87 +780,97 @@ void lora_init() {
     }
 
     LED_433(1);
-    if (radio_433.begin() == RADIOLIB_ERR_NONE)
+
+    hal_433   = new PiHal(0);
+    mod_433   = new Module(hal_433, 8, 25, 5, 24);
+    radio_433 = new SX1278(mod_433);
+
+    hal_868   = new PiHal(0);
+    mod_868   = new Module(hal_868, 7, 16, 6, 12);
+    radio_868 = new RFM95(mod_868);
+
+    if (radio_433->begin() == RADIOLIB_ERR_NONE)
         printf("[433] Init OK\n");
     else printf("[433] Init FEHLGESCHLAGEN\n");
 
 
 // LoRa-APRS:
 
-    radio_433.setFrequency(433.900);
-    radio_433.setSpreadingFactor(12);
-    radio_433.setBandwidth(125.0);
-    radio_433.setSyncWord(0x12);
-    radio_433.setPreambleLength(8);
-    radio_433.setCodingRate(5);
-    radio_433.setCRC(true);
-    radio_433.autoLDRO();
-    radio_433.setOutputPower(10);
+    radio_433->setFrequency(433.900);
+    radio_433->setSpreadingFactor(12);
+    radio_433->setBandwidth(125.0);
+    radio_433->setSyncWord(0x12);
+    radio_433->setPreambleLength(8);
+    radio_433->setCodingRate(5);
+    radio_433->setCRC(true);
+    radio_433->autoLDRO();
+    radio_433->setOutputPower(10);
 
     /*
 
 // LoRa DX Cluster:
-    radio_433.setFrequency(433.900);
-    radio_433.setSpreadingFactor(10);
-    radio_433.setBandwidth(125.0);
-    radio_433.setSyncWord(0x12);
-    radio_433.setPreambleLength(8);
-    radio_433.setCodingRate(5);
-    radio_433.setCRC(true);
-    radio_433.autoLDRO();
-    radio_433.setOutputPower(10);
+    radio_433->setFrequency(433.900);
+    radio_433->setSpreadingFactor(10);
+    radio_433->setBandwidth(125.0);
+    radio_433->setSyncWord(0x12);
+    radio_433->setPreambleLength(8);
+    radio_433->setCodingRate(5);
+    radio_433->setCRC(true);
+    radio_433->autoLDRO();
+    radio_433->setOutputPower(10);
 
 
 
 // Meshtastic 433:
 
-    radio_433.setFrequency(433.900); // DB0ARD
-    radio_433.setSpreadingFactor(11);
-    radio_433.setBandwidth(125.0);
-    radio_433.setSyncWord(0x2B);
-    radio_433.setPreambleLength(16);
-    radio_433.setCodingRate(5);
-    radio_433.setCRC(true);
-    radio_433.autoLDRO();
-    radio_433.setOutputPower(10);
+    radio_433->setFrequency(433.900); // DB0ARD
+    radio_433->setSpreadingFactor(11);
+    radio_433->setBandwidth(125.0);
+    radio_433->setSyncWord(0x2B);
+    radio_433->setPreambleLength(16);
+    radio_433->setCodingRate(5);
+    radio_433->setCRC(true);
+    radio_433->autoLDRO();
+    radio_433->setOutputPower(10);
 
 
 // Meshcom:
 
-    radio_433.setFrequency(433.175);
-    radio_433.setSpreadingFactor(11);
-    radio_433.setBandwidth(250.0);
-    radio_433.setSyncWord(0x2B);
-    radio_433.setPreambleLength(8);
-    radio_433.setCodingRate(6);
-    radio_433.setCRC(true);
-    //radio_433.autoLDRO();
-    radio_433.setOutputPower(10);
+    radio_433->setFrequency(433.175);
+    radio_433->setSpreadingFactor(11);
+    radio_433->setBandwidth(250.0);
+    radio_433->setSyncWord(0x2B);
+    radio_433->setPreambleLength(8);
+    radio_433->setCodingRate(6);
+    radio_433->setCRC(true);
+    //radio_433->autoLDRO();
+    radio_433->setOutputPower(10);
 /*
 */
-    radio_433.setPacketReceivedAction(setFlag433); // Callback nutzen
+    radio_433->setPacketReceivedAction(setFlag433); // Callback nutzen
     LED_433(0);
 
     LED_868(1);
-    if (radio_868.begin() == RADIOLIB_ERR_NONE)
+    if (radio_868->begin() == RADIOLIB_ERR_NONE)
         printf("[868] Init OK\n");
     else printf("[868] Init FEHLGESCHLAGEN\n");
 
-    radio_868.setFrequency(869.525);
-    radio_868.setSpreadingFactor(11);
-    radio_868.setBandwidth(250.0);
-    radio_868.setSyncWord(0x2B);
-    radio_868.setPreambleLength(16);
-    radio_868.setCodingRate(5);
-    radio_868.setCRC(true);
-    radio_868.autoLDRO();
-    radio_868.setOutputPower(10);
+    radio_868->setFrequency(869.525);
+    radio_868->setSpreadingFactor(11);
+    radio_868->setBandwidth(250.0);
+    radio_868->setSyncWord(0x2B);
+    radio_868->setPreambleLength(16);
+    radio_868->setCodingRate(5);
+    radio_868->setCRC(true);
+    radio_868->autoLDRO();
+    radio_868->setOutputPower(10);
 
-    radio_868.setPacketReceivedAction(setFlag868); // Callback nutzen
+    radio_868->setPacketReceivedAction(setFlag868); // Callback nutzen
     LED_868(0);
 
-    radio_433.startReceive();
-    radio_868.startReceive();
+    radio_433->startReceive();
+    radio_868->startReceive();
+    fflush(stdout);
 }
 
 // --- Unix Socket Setup ---
@@ -1139,8 +1149,8 @@ int main(int argc, char *argv[]) {
                 } else {
                     buf[n]='\0';
                     printf("[CONF433]");
-                    parse_and_apply_config_generic<SX1278>(radio_433, "CONF 433", (char*)buf);
-                    radio_433.startReceive();
+                    parse_and_apply_config_generic<SX1278>(*radio_433, "CONF 433", (char*)buf);
+                    radio_433->startReceive();
                     //printf("/n");
                     // AUTO-TEST: Wenn SF=12 und Freq=433.775, sende TEST
 
@@ -1159,8 +1169,8 @@ int main(int argc, char *argv[]) {
                     client_conf868[i]=0;
                 } else {
                     buf[n]='\0';
-                    parse_and_apply_config_generic<RFM95>(radio_868, "CONF 868", (char*)buf);
-                    radio_868.startReceive();
+                    parse_and_apply_config_generic<RFM95>(*radio_868, "CONF 868", (char*)buf);
+                    radio_868->startReceive();
                 }
             }
         }
@@ -1173,10 +1183,10 @@ int main(int argc, char *argv[]) {
             if(txBusy433 == false){
                 receivedFlag433 = false;
                 memset(rx_buf_433, 0, sizeof(rx_buf_433));           // Buffer leeren
-                radio_433.clearIrq(0xFFFFFFFF);        // ← FIX: clearIrq()
+                radio_433->clearIrq(0xFFFFFFFF);        // ← FIX: clearIrq()
 
-            int len433 = radio_433.getPacketLength();
-            int16_t n433 = radio_433.readData(rx_buf_433,sizeof(rx_buf_433)); // 5ms Timeout
+            int len433 = radio_433->getPacketLength();
+            int16_t n433 = radio_433->readData(rx_buf_433,sizeof(rx_buf_433)); // 5ms Timeout
 
             uint32_t toNode      = rx_buf_433[0] | (rx_buf_433[1] << 8) | (rx_buf_433[2] << 16) | (rx_buf_433[3] << 24);
             uint32_t fromNode    = rx_buf_433[4] | (rx_buf_433[5] << 8) | (rx_buf_433[6] << 16) | (rx_buf_433[7] << 24);
@@ -1220,7 +1230,7 @@ int main(int argc, char *argv[]) {
                 else
                     printf(".");
             }
-            printf(" RSSI: %.2f dBm\n", radio_433.getRSSI());
+            printf(" RSSI: %.2f dBm\n", radio_433->getRSSI());
 
 
             if(len433 > 0){
@@ -1230,11 +1240,11 @@ int main(int argc, char *argv[]) {
 
             len433=0;
             LED_433(0);
-            radio_433.startReceive();
+            radio_433->startReceive();
             } else {
                 // TX läuft noch - Flag zurücksetzen und IRQ clearen
                 receivedFlag433 = false;
-                radio_433.clearIrq(0xFFFFFFFF);
+                radio_433->clearIrq(0xFFFFFFFF);
                 printf("[433] RX während TX - verwerfe Paket\n");
             }
         }
@@ -1244,9 +1254,9 @@ int main(int argc, char *argv[]) {
             if(txBusy868 == false){
                 receivedFlag868 = false;
                 memset(rx_buf_868, 0, sizeof(rx_buf_868));           // rx_buffer leeren
-                radio_868.clearIrq(0xFFFFFFFF);        // ← FIX: clearIrq()
-            int len868 = radio_868.getPacketLength();
-            int16_t n868 = radio_868.readData(rx_buf_868,sizeof(rx_buf_868)); // 5ms Timeout
+                radio_868->clearIrq(0xFFFFFFFF);        // ← FIX: clearIrq()
+            int len868 = radio_868->getPacketLength();
+            int16_t n868 = radio_868->readData(rx_buf_868,sizeof(rx_buf_868)); // 5ms Timeout
 
 
             uint32_t toNode      = rx_buf_868[0] | (rx_buf_868[1] << 8) | (rx_buf_868[2] << 16) | (rx_buf_868[3] << 24);
@@ -1283,7 +1293,7 @@ int main(int argc, char *argv[]) {
                 else
                     printf(".");
             }
-            printf(" RSSI: %.2f dBm\n", radio_868.getRSSI());
+            printf(" RSSI: %.2f dBm\n", radio_868->getRSSI());
 
             if(len868 > 0){
                 for(int i=0;i<MAX_CLIENTS;i++)
@@ -1294,13 +1304,13 @@ int main(int argc, char *argv[]) {
             memset(rx_buf_868, 0, sizeof(rx_buf_868) );
             n868=0;
             LED_868(0);
-            //radio_868.standby();
-            //radio_868.clearIrqFlags(0xFFFFFFFF);
-            radio_868.startReceive();
+            //radio_868->standby();
+            //radio_868->clearIrqFlags(0xFFFFFFFF);
+            radio_868->startReceive();
             } else {
                 // TX läuft noch - Flag zurücksetzen und IRQ clearen
                 receivedFlag868 = false;
-                radio_868.clearIrq(0xFFFFFFFF);
+                radio_868->clearIrq(0xFFFFFFFF);
                 printf("[868] RX während TX - verwerfe Paket\n");
             }
         }
