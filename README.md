@@ -13,7 +13,7 @@ First code for the LoRaHAM Pi hardware | https://www.loraham.de/produkt/loraham-
 * Raspberry Pi 3/4/5
 * Raspbian Image on RPi
 
-Need follow parts on the Raspberry Pi image:
+# Need follow parts on the Raspberry Pi image:
 
     sudo apt update
     sudo apt install g++ make cmake build-essential -y
@@ -28,6 +28,18 @@ Need follow parts on the Raspberry Pi image:
     cd build
     cmake ..
     sudo make install
+
+# Configure your Raspberry Pi Hardware Interface:
+
+    sudo raspi-config nonint set_config_var dtparam=spi on /boot/firmware/config.txt # Enable SPI
+    
+    # Ensure dtoverlay=spi0-0cs is set in /boot/firmware/config.txt without altering dtoverlay=vc4-kms-v3d or dtparam=uart0
+    sudo sed -i -e '/^\s*#\?\s*dtoverlay\s*=\s*vc4-kms-v3d/! s/^\s*#\?\s*(dtoverlay|dtparam\s*=\s*uart0)\s*=.*/dtoverlay=spi0-0cs/' /boot/firmware/config.txt
+    
+    # Insert dtoverlay=spi0-0cs after dtparam=spi=on if not already present
+    if ! sudo grep -q '^\s*dtoverlay=spi0-0cs' /boot/firmware/config.txt; then
+        sudo sed -i '/^\s*dtparam=spi=on/a dtoverlay=spi0-0cs' /boot/firmware/config.txt
+    fi
 
 # Compile instruction
 loraham Daemon:
@@ -158,7 +170,7 @@ Erster Code für die LoRaHAM Pi Hardware | https://www.loraham.de/produkt/loraha
 * Raspberry Pi 3/4/5
 * Raspbian Image auf RPi
 
-Folgende Pakete werden auf dem Raspberry Pi Image benötigt:
+# Folgende Pakete werden auf dem Raspberry Pi Image benötigt:
 
     sudo apt update
     sudo apt install g++ make cmake build-essential -y
@@ -173,6 +185,18 @@ Folgende Pakete werden auf dem Raspberry Pi Image benötigt:
     cd build
     cmake ..
     sudo make install
+
+# Konfiguriere die SPI-Hardware des Raspberry Pi:
+
+    sudo raspi-config nonint set_config_var dtparam=spi on /boot/firmware/config.txt # Enable SPI
+    
+    # Ensure dtoverlay=spi0-0cs is set in /boot/firmware/config.txt without altering dtoverlay=vc4-kms-v3d or dtparam=uart0
+    sudo sed -i -e '/^\s*#\?\s*dtoverlay\s*=\s*vc4-kms-v3d/! s/^\s*#\?\s*(dtoverlay|dtparam\s*=\s*uart0)\s*=.*/dtoverlay=spi0-0cs/' /boot/firmware/config.txt
+    
+    # Insert dtoverlay=spi0-0cs after dtparam=spi=on if not already present
+    if ! sudo grep -q '^\s*dtoverlay=spi0-0cs' /boot/firmware/config.txt; then
+        sudo sed -i '/^\s*dtparam=spi=on/a dtoverlay=spi0-0cs' /boot/firmware/config.txt
+    fi
 
 # Kompilieranweisung
 loraham Daemon:
