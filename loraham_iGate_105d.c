@@ -248,12 +248,22 @@ int main(int argc, char **argv) {
     }
 
     if (run_as_daemon) {
-        // daemon(noch_im_cwd_bleiben, stdout/stderr_schließen)
-        // 1, 0 bedeutet: Bleibe im aktuellen Verzeichnis, leite stdout/stderr nach /dev/null
-        if (daemon(1, 0) < 0) {
+        // daemon(1, 1) -> Bleibe im CWD (1) und schließe die Deskriptoren NICHT (1)
+        if (daemon(1, 1) < 0) {
             perror("Daemon Start fehlgeschlagen");
             exit(1);
         }
+
+        // Jetzt leiten wir manuell um, damit die Deskriptoren 0, 1, 2
+        // reserviert bleiben und nicht von deinen Sockets belegt werden.
+        // Deine log_print Ausgaben landen dann in dieser Datei:
+        freopen("/tmp/loraham_igate.log", "a", stdout);
+        freopen("/tmp/loraham_igate.log", "a", stderr);
+
+        // stdin brauchen wir als Daemon wirklich nicht
+        freopen("/dev/null", "r", stdin);
+
+        log_print("[SYSTEM]     Daemon-Modus aktiv. Logs unter /tmp/loraham_igate.log\n");
     }
 
     // Ab hier läuft der Code (entweder im Terminal oder als Daemon)
