@@ -198,7 +198,7 @@ void print_usage(char *name) {
 }
 
 int main(int argc, char **argv) {
-   log_print("[EWOCLEM]    LoRaHAM PiGate OVERWATCH V1.00 26.02.27\n");
+    log_print("[EWOCLEM]    LoRaHAM PiGate OVERWATCH V1.00 26.02.27\n");
     log_print("[EWOCLEM]    \n");
     log_print("[EWOCLEM]     ******************************************************************************\n");
     log_print("[EWOCLEM]     * Copyright (C) 2026  [LoRaHAM / Alexander Walter]\n");
@@ -227,7 +227,6 @@ int main(int argc, char **argv) {
     int opt;
     int run_as_daemon = 0;
 
-    // "d" zur Optionsliste hinzugefügt
     while ((opt = getopt(argc, argv, "c:t:r:i:f:L:O:x:y:R:S:hd")) != -1) {
         switch (opt) {
             case 'c': strncpy(my_call, optarg, sizeof(my_call)-1); break;
@@ -248,138 +247,172 @@ int main(int argc, char **argv) {
     }
 
     if (run_as_daemon) {
-        // daemon(1, 1) -> Bleibe im CWD (1) und schließe die Deskriptoren NICHT (1)
         if (daemon(1, 1) < 0) {
             perror("Daemon Start fehlgeschlagen");
             exit(1);
         }
-
-        // Jetzt leiten wir manuell um, damit die Deskriptoren 0, 1, 2
-        // reserviert bleiben und nicht von deinen Sockets belegt werden.
-        // Deine log_print Ausgaben landen dann in dieser Datei:
         freopen("/tmp/loraham_igate.log", "a", stdout);
         freopen("/tmp/loraham_igate.log", "a", stderr);
-
-        // stdin brauchen wir als Daemon wirklich nicht
         freopen("/dev/null", "r", stdin);
-
         log_print("[SYSTEM]     Daemon-Modus aktiv. Logs unter /tmp/loraham_igate.log\n");
     }
 
-    // Ab hier läuft der Code (entweder im Terminal oder als Daemon)
-
-    int aprs_sock, data_s;
+    int aprs_sock = -1, data_s = -1;
     struct sockaddr_in serv_addr;
     struct hostent *server;
     char buffer[2048];
     time_t last_is = 0, last_rf = 0;
 
+    // Initiale LoRa-Konfiguration
     char init_cmd[256];
     sprintf(init_cmd, "SET FREQ=%s SF=12 BW=125 CR=5 CRC=1 PREAMBLE=8 SYNC=0x12 LDRO=1 POWER=17", freq_rx);
     send_lora_conf(init_cmd);
 
-    aprs_sock = socket(AF_INET, SOCK_STREAM, 0);
-    server = gethostbyname(APRS_SERVER);
-    if (!server) exit(1);
-    serv_addr.sin_family = AF_INET;
-    bcopy((char *)server->h_addr, (char *)&serv_addr.sin_addr.s_addr, server->h_length);
-    serv_addr.sin_port = htons(APRS_PORT);
-    if (connect(aprs_sock, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0) exit(1);
+    log_print("[SYSTEM]     %s gestartet. Betrete Hauptschleife.\n", my_call);
 
-    sprintf(buffer, "user %s pass %d vers RPi-LoRa-Gate 1.16 filter m/%s/%s/%s\r\n",
-            my_call, generate_aprs_passcode(my_call), filter_radius, lat_filter, lon_filter);
-    send(aprs_sock, buffer, strlen(buffer), 0);
+    while (1) { // Äußere Schleife für automatischen Reconnect
 
-    struct sockaddr_un data_remote;
-    data_s = socket(AF_UNIX, SOCK_STREAM, 0);
-    data_remote.sun_family = AF_UNIX;
-    strncpy(data_remote.sun_path, DATA_SOCKET, sizeof(data_remote.sun_path)-1);
-    while (connect(data_s, (struct sockaddr *)&data_remote, strlen(data_remote.sun_path) + sizeof(data_remote.sun_family)) == -1) {
-        sleep(2);
-    }
-
-    log_print("[SYSTEM]     %s gestartet.\n", my_call);
-
-    while (1) {
-        fd_set readfds;
-        struct timeval tv = {1, 0};
-        FD_ZERO(&readfds);
-        FD_SET(aprs_sock, &readfds);
-        FD_SET(data_s, &readfds);
-        int max_fd = (aprs_sock > data_s) ? aprs_sock : data_s;
-
-        select(max_fd + 1, &readfds, NULL, NULL, &tv);
-        time_t now = time(NULL);
-
-        if (!is_transmitting) {
-            if (ENABLE_IS_BEACON && (now - last_is >= interval_is)) {
-                send_is_beacon(aprs_sock);
-                last_is = now;
-            }
-            if (ENABLE_RF_BEACON && (now - last_rf >= interval_rf)) {
-                send_rf_beacon(data_s);
-                last_rf = now;
-            }
+        // 1. APRS-IS Verbindung aufbauen
+        server = gethostbyname(APRS_SERVER);
+        if (server == NULL) {
+            log_print("[SYSTEM]     DNS Fehler. Retry in 30s...\n");
+            sleep(30);
+            continue;
         }
 
-        if (FD_ISSET(data_s, &readfds)) {
-            int len = recv(data_s, buffer, sizeof(buffer)-1, 0);
-            if (len > HEADER_LEN) {
-                buffer[len] = '\0';
-                char *h_pos = (char*)memmem(buffer, len, LORA_HEADER, HEADER_LEN);
-                if (h_pos != NULL) {
-                    char *aprs_data = h_pos + HEADER_LEN;
-                    if (isalnum((unsigned char)aprs_data[0])) {
-                        char out_is[2100];
-                        snprintf(out_is, sizeof(out_is), "%s\r\n", aprs_data);
-                        send(aprs_sock, out_is, strlen(out_is), 0);
-                        log_print("[GATEWAY]    RF -> IS: %s", out_is);
+        aprs_sock = socket(AF_INET, SOCK_STREAM, 0);
+        serv_addr.sin_family = AF_INET;
+        bcopy((char *)server->h_addr, (char *)&serv_addr.sin_addr.s_addr, server->h_length);
+        serv_addr.sin_port = htons(APRS_PORT);
 
-                        char *wide_ptr = strstr(aprs_data, "WIDE");
-                        if (wide_ptr != NULL && strstr(aprs_data, my_call) == NULL) {
-                            int n = 0, h = 0;
-                            if (sscanf(wide_ptr, "WIDE%d-%d", &n, &h) == 2) {
-                                if (h > 0) {
-                                    char clean_rf[512];
-                                    char new_path[128];
-                                    int prefix_len = wide_ptr - aprs_data;
-                                    if (h > 2) h = 2;
-                                    if (n == 1 && h == 1) {
-                                        snprintf(new_path, sizeof(new_path), "%s*", my_call);
-                                    } else {
-                                        snprintf(new_path, sizeof(new_path), "%s*,WIDE%d-%d", my_call, n, h - 1);
+        if (connect(aprs_sock, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0) {
+            log_print("[SYSTEM]     APRS-Connect fehlgeschlagen. Retry in 30s...\n");
+            close(aprs_sock);
+            sleep(30);
+            continue;
+        }
+
+        // Login senden
+        sprintf(buffer, "user %s pass %d vers RPi-LoRa-Gate 1.16 filter m/%s/%s/%s\r\n",
+                my_call, generate_aprs_passcode(my_call), filter_radius, lat_filter, lon_filter);
+        send(aprs_sock, buffer, strlen(buffer), 0);
+        log_print("[SYSTEM]     Verbunden mit APRS-IS %s\n", APRS_SERVER);
+
+        // 2. Data-Socket zum LoRa-Daemon (falls noch nicht offen)
+        if (data_s < 0) {
+            struct sockaddr_un data_remote;
+            data_s = socket(AF_UNIX, SOCK_STREAM, 0);
+            data_remote.sun_family = AF_UNIX;
+            strncpy(data_remote.sun_path, DATA_SOCKET, sizeof(data_remote.sun_path)-1);
+
+            log_print("[SYSTEM]     Warte auf LoRa-Daemon Socket...\n");
+            while (connect(data_s, (struct sockaddr *)&data_remote, strlen(data_remote.sun_path) + sizeof(data_remote.sun_family)) == -1) {
+                sleep(5);
+            }
+            log_print("[SYSTEM]     LoRa-Daemon Socket verbunden.\n");
+        }
+
+        // --- INNERE ARBEITSSCHLEIFE ---
+        while (1) {
+            fd_set readfds;
+            struct timeval tv = {1, 0};
+            FD_ZERO(&readfds);
+            FD_SET(aprs_sock, &readfds);
+            FD_SET(data_s, &readfds);
+            int max_fd = (aprs_sock > data_s) ? aprs_sock : data_s;
+
+            int sel = select(max_fd + 1, &readfds, NULL, NULL, &tv);
+            if (sel < 0) break; // Fehler bei select -> Reconnect
+
+            time_t now = time(NULL);
+
+            if (!is_transmitting) {
+                if (ENABLE_IS_BEACON && (now - last_is >= interval_is)) {
+                    send_is_beacon(aprs_sock);
+                    last_is = now;
+                }
+                if (ENABLE_RF_BEACON && (now - last_rf >= interval_rf)) {
+                    send_rf_beacon(data_s);
+                    last_rf = now;
+                }
+            }
+
+            // Daten vom LoRa-Daemon (RF -> IS)
+            if (FD_ISSET(data_s, &readfds)) {
+                int len = recv(data_s, buffer, sizeof(buffer)-1, 0);
+                if (len <= 0) {
+                    log_print("[SYSTEM]     LoRa-Daemon Socket verloren!\n");
+                    close(data_s);
+                    data_s = -1;
+                    break; // Raus zur äußeren Schleife
+                }
+                if (len > HEADER_LEN) {
+                    buffer[len] = '\0';
+                    char *h_pos = (char*)memmem(buffer, len, LORA_HEADER, HEADER_LEN);
+                    if (h_pos != NULL) {
+                        char *aprs_data = h_pos + HEADER_LEN;
+                        if (isalnum((unsigned char)aprs_data[0])) {
+                            char out_is[2100];
+                            snprintf(out_is, sizeof(out_is), "%s\r\n", aprs_data);
+                            send(aprs_sock, out_is, strlen(out_is), 0);
+                            log_print("[GATEWAY]    RF -> IS: %s", out_is);
+
+                            char *wide_ptr = strstr(aprs_data, "WIDE");
+                            if (wide_ptr != NULL && strstr(aprs_data, my_call) == NULL) {
+                                int n = 0, h = 0;
+                                if (sscanf(wide_ptr, "WIDE%d-%d", &n, &h) == 2) {
+                                    if (h > 0) {
+                                        char clean_rf[512];
+                                        char new_path[128];
+                                        int prefix_len = wide_ptr - aprs_data;
+                                        if (h > 2) h = 2;
+                                        if (n == 1 && h == 1) {
+                                            snprintf(new_path, sizeof(new_path), "%s*", my_call);
+                                        } else {
+                                            snprintf(new_path, sizeof(new_path), "%s*,WIDE%d-%d", my_call, n, h - 1);
+                                        }
+                                        snprintf(clean_rf, sizeof(clean_rf), "%.*s%s%s",
+                                                 prefix_len, aprs_data, new_path, wide_ptr + 7);
+                                        log_print("[DIGIPEATER] Re-TX: %s\n", clean_rf);
+                                        usleep(800000);
+                                        safe_lora_send(data_s, clean_rf, strlen(clean_rf));
                                     }
-                                    snprintf(clean_rf, sizeof(clean_rf), "%.*s%s%s",
-                                             prefix_len, aprs_data, new_path, wide_ptr + 7);
-                                    log_print("[DIGIPEATER] Re-TX: %s\n", clean_rf);
-                                    usleep(800000);
-                                    safe_lora_send(data_s, clean_rf, strlen(clean_rf));
                                 }
                             }
                         }
                     }
                 }
             }
-        }
 
-        if (FD_ISSET(aprs_sock, &readfds)) {
-            int len = recv(aprs_sock, buffer, sizeof(buffer)-1, 0);
-            if (len <= 0) break;
-            buffer[len] = '\0';
-            char *saveptr;
-            char *line = strtok_r(buffer, "\r\n", &saveptr);
-            while (line != NULL) {
-                if (line[0] != '#' && strchr(line, '>') != NULL) {
-                    int line_len = strlen(line);
-                    if (line_len > 0 && line_len < 250) {
-                        log_print("[REPEATER]   Single Packet -> HF (%d Bytes): %s\n", line_len, line);
-                        safe_lora_send(data_s, line, line_len);
-                        usleep(500000);
-                    }
+            // Daten vom APRS-IS (IS -> RF)
+            if (FD_ISSET(aprs_sock, &readfds)) {
+                int len = recv(aprs_sock, buffer, sizeof(buffer)-1, 0);
+                if (len <= 0) {
+                    log_print("[SYSTEM]     APRS-IS Verbindung verloren!\n");
+                    close(aprs_sock);
+                    aprs_sock = -1;
+                    break; // Raus zur äußeren Schleife für Reconnect
                 }
-                line = strtok_r(NULL, "\r\n", &saveptr);
+                buffer[len] = '\0';
+                char *saveptr;
+                char *line = strtok_r(buffer, "\r\n", &saveptr);
+                while (line != NULL) {
+                    if (line[0] != '#' && strchr(line, '>') != NULL) {
+                        int line_len = strlen(line);
+                        if (line_len > 0 && line_len < 250) {
+                            log_print("[REPEATER]   Single Packet -> HF (%d Bytes): %s\n", line_len, line);
+                            safe_lora_send(data_s, line, line_len);
+                            usleep(500000);
+                        }
+                    }
+                    line = strtok_r(NULL, "\r\n", &saveptr);
+                }
             }
-        }
+        } // Ende innere Schleife
+
+        sleep(5); // Kurze Pause vor Neustart der Verbindung
     }
+
     return 0;
 }
+
