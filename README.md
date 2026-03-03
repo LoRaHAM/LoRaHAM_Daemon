@@ -93,7 +93,7 @@ iGate options:
 
 Example:
 
-     ./loraham_igate -c DB0ABC-10 -t 433.900 -r 433.775 -L 4827.72N -O 00957.94E -f 600 -i 1200 -d
+     ./loraham_igate -c DB0ABC-10 -t 433.900 -r 433.775 -L 4827.70N -O 00957.60E -f 600 -i 1200 -d
  
 # Background information
 loraham_daemon opens 4 IPC (inter process communication) UNIX-Sockets:
@@ -250,7 +250,7 @@ iGate Optionen:
 
 Beispiel:
 
-     ./loraham_igate -c DB0ABC-10 -t 433.900 -r 433.775 -L 4827.72N -O 00957.94E -f 600 -i 1200 -d
+     ./loraham_igate -c DB0ABC-10 -t 433.900 -r 433.775 -L 4827.70N -O 00957.60E -f 600 -i 1200 -d
  
 # Hintergrundinformationen
 loraham_daemon öffnet 4 IPC (Inter-Process Communication) UNIX-Sockets:
