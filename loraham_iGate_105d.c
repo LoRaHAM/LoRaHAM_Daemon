@@ -67,7 +67,7 @@ int interval_is       = 600;
 int interval_rf       = 600;
 
 char lat_str[20]      = "4827.70N";
-char lon_str[20]      = "00957.90E";
+char lon_str[20]      = "00957.60E";
 char lat_filter[20]   = "48.40";
 char lon_filter[20]   = "9.90";
 char filter_radius[10]= "5";
