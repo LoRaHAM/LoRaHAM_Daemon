@@ -213,88 +213,7 @@ void print_usage(char *name) {
     printf("  -d           Als Daemon im Hintergrund starten\n");
 }
 
-
-/**
- * Initialisiert die Tabelle (alle Einträge auf inaktiv setzen)
- */
-void init_gating_table() {
-    for (int i = 0; i < GATING_TABLE_SIZE; i++) {
-        gating_table[i].is_active = 0;
-        memset(gating_table[i].callsign, 0, sizeof(gating_table[i].callsign));
-    }
-}
-
-/**
- * Fügt ein Rufzeichen hinzu oder aktualisiert den Zeitstempel, wenn es auf RF gehört wurde.
- */
-void update_gating_table(const char* full_packet) {
-    char call[12];
-    int i;
-
-    // Extrahiere das Quell-Rufzeichen (alles vor dem '>')
-    const char* separator = strchr(full_packet, '>');
-    if (!separator) return;
-
-    int len = separator - full_packet;
-    if (len >= sizeof(call)) len = sizeof(call) - 1;
-    strncpy(call, full_packet, len);
-    call[len] = '\0';
-
-    time_t now = time(NULL);
-
-    // 1. Suche, ob das Rufzeichen bereits existiert
-    for (i = 0; i < GATING_TABLE_SIZE; i++) {
-        if (gating_table[i].is_active && strcmp(gating_table[i].callsign, call) == 0) {
-            gating_table[i].last_heard = now;
-            return;
-        }
-    }
-
-    // 2. Wenn nicht gefunden, suche einen freien Platz
-    for (i = 0; i < GATING_TABLE_SIZE; i++) {
-        if (!gating_table[i].is_active) {
-            strncpy(gating_table[i].callsign, call, sizeof(gating_table[i].callsign) - 1);
-            gating_table[i].last_heard = now;
-            gating_table[i].is_active = 1;
-            log_print("[GATING] Neu in Tabelle: %s\n", call);
-            return;
-        }
-    }
-
-    // Optional: Ältesten Eintrag überschreiben, falls Tabelle voll (Ringpuffer-Logik)
-}
-
-/**
- * Prüft, ob ein Rufzeichen in der Tabelle ist und noch nicht abgelaufen ist.
- */
-int is_call_in_gating_table(const char* callsign) {
-    time_t now = time(NULL);
-    double diff_seconds;
-
-    for (int i = 0; i < GATING_TABLE_SIZE; i++) {
-        if (gating_table[i].is_active) {
-            // Berechne Alter des Eintrags
-            diff_seconds = difftime(now, gating_table[i].last_heard);
-
-            if (diff_seconds > (gating_timeout_minutes * 60)) {
-                // Eintrag abgelaufen
-                gating_table[i].is_active = 0;
-                continue;
-            }
-
-            // Prüfe auf Übereinstimmung (beachtet nur den Rufzeichen-Teil vor dem '-')
-            if (strncmp(gating_table[i].callsign, callsign, strlen(gating_table[i].callsign)) == 0) {
-                return 1; // Treffer!
-            }
-        }
-    }
-    return 0; // Nicht gefunden oder abgelaufen
-}
-
 int main(int argc, char **argv) {
-    // Initialisierung der Gating-Tabelle
-    init_gating_table();
-
     log_print("[EWOCLEM]    LoRaHAM PiGate OVERWATCH V1.00 26.02.27\n");
     log_print("[EWOCLEM]    \n");
     log_print("[EWOCLEM]     ******************************************************************************\n");
@@ -365,10 +284,11 @@ int main(int argc, char **argv) {
     sprintf(init_cmd, "SET FREQ=%s SF=12 BW=125 CR=5 CRC=1 PREAMBLE=8 SYNC=0x12 LDRO=1 POWER=17", freq_rx);
     send_lora_conf(init_cmd);
 
-    log_print("[SYSTEM]     %s gestartet. Gating aktiv (%d Min). Betrete Hauptschleife.\n", my_call, gating_timeout_minutes);
+    log_print("[SYSTEM]     %s gestartet. Betrete Hauptschleife.\n", my_call);
 
-    while (1) {
+    while (1) { // Äußere Schleife für automatischen Reconnect
 
+        // 1. APRS-IS Verbindung aufbauen
         server = gethostbyname(APRS_SERVER);
         if (server == NULL) {
             log_print("[SYSTEM]     DNS Fehler. Retry in 30s...\n");
@@ -388,11 +308,13 @@ int main(int argc, char **argv) {
             continue;
         }
 
+        // Login senden
         sprintf(buffer, "user %s pass %d vers RPi-LoRa-Gate 1.16 filter m/%s/%s/%s\r\n",
                 my_call, generate_aprs_passcode(my_call), filter_radius, lat_filter, lon_filter);
         send(aprs_sock, buffer, strlen(buffer), 0);
         log_print("[SYSTEM]     Verbunden mit APRS-IS %s\n", APRS_SERVER);
 
+        // 2. Data-Socket zum LoRa-Daemon (falls noch nicht offen)
         if (data_s < 0) {
             struct sockaddr_un data_remote;
             data_s = socket(AF_UNIX, SOCK_STREAM, 0);
@@ -406,6 +328,7 @@ int main(int argc, char **argv) {
             log_print("[SYSTEM]     LoRa-Daemon Socket verbunden.\n");
         }
 
+        // --- INNERE ARBEITSSCHLEIFE ---
         while (1) {
             fd_set readfds;
             struct timeval tv = {1, 0};
@@ -415,7 +338,7 @@ int main(int argc, char **argv) {
             int max_fd = (aprs_sock > data_s) ? aprs_sock : data_s;
 
             int sel = select(max_fd + 1, &readfds, NULL, NULL, &tv);
-            if (sel < 0) break;
+            if (sel < 0) break; // Fehler bei select -> Reconnect
 
             time_t now = time(NULL);
 
@@ -437,7 +360,7 @@ int main(int argc, char **argv) {
                     log_print("[SYSTEM]     LoRa-Daemon Socket verloren!\n");
                     close(data_s);
                     data_s = -1;
-                    break;
+                    break; // Raus zur äußeren Schleife
                 }
                 if (len > HEADER_LEN) {
                     buffer[len] = '\0';
@@ -445,15 +368,11 @@ int main(int argc, char **argv) {
                     if (h_pos != NULL) {
                         char *aprs_data = h_pos + HEADER_LEN;
                         if (isalnum((unsigned char)aprs_data[0])) {
-                            // Gating aktualisieren
-                            update_gating_table(aprs_data);
-
                             char out_is[2100];
                             snprintf(out_is, sizeof(out_is), "%s\r\n", aprs_data);
                             send(aprs_sock, out_is, strlen(out_is), 0);
                             log_print("[GATEWAY]    RF -> IS: %s", out_is);
 
-                            // Digipeater Logik bleibt erhalten
                             char *wide_ptr = strstr(aprs_data, "WIDE");
                             if (wide_ptr != NULL && strstr(aprs_data, my_call) == NULL) {
                                 int n = 0, h = 0;
@@ -488,28 +407,28 @@ int main(int argc, char **argv) {
                     log_print("[SYSTEM]     APRS-IS Verbindung verloren!\n");
                     close(aprs_sock);
                     aprs_sock = -1;
-                    break;
+                    break; // Raus zur äußeren Schleife für Reconnect
                 }
                 buffer[len] = '\0';
                 char *saveptr;
                 char *line = strtok_r(buffer, "\r\n", &saveptr);
                 while (line != NULL) {
                     if (line[0] != '#' && strchr(line, '>') != NULL) {
-                        // Gating Check
-                        if (is_call_in_gating_table(line)) {
-                            int line_len = strlen(line);
-                            if (line_len > 0 && line_len < 250) {
-                                log_print("[GATED-TX]   HF (%d Bytes): %s\n", line_len, line);
-                                safe_lora_send(data_s, line, line_len);
-                                usleep(500000);
-                            }
+                        int line_len = strlen(line);
+                        if (line_len > 0 && line_len < 250) {
+                            log_print("[REPEATER]   Single Packet -> HF (%d Bytes): %s\n", line_len, line);
+                            safe_lora_send(data_s, line, line_len);
+                            usleep(500000);
                         }
                     }
                     line = strtok_r(NULL, "\r\n", &saveptr);
                 }
             }
-        }
-        sleep(5);
+        } // Ende innere Schleife
+
+        sleep(5); // Kurze Pause vor Neustart der Verbindung
     }
+
     return 0;
 }
+
