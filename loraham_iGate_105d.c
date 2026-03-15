@@ -57,11 +57,6 @@ Als Daemon im Hintergrund:
 #include <time.h>
 #include <string.h>
 
-// --- GATING KONFIGURATION ---
-#define GATING_TABLE_SIZE 256
-int gating_timeout_minutes = 30; // Zeit in Minuten, wie lange ein Rufzeichen aktiv bleibt
-
-
 // --- FARBEN ---
 #define CLR_BLUE  "\x1B[34m"
 #define CLR_RESET "\x1B[0m"
@@ -79,15 +74,6 @@ char lat_filter[20]   = "48.40";
 char lon_filter[20]   = "9.90";
 char filter_radius[10]= "5";
 char symbol[2]        = "&";
-
-
-typedef struct {
-    char callsign[12];
-    time_t last_heard;
-    int is_active;
-} GatingEntry;
-
-GatingEntry gating_table[GATING_TABLE_SIZE];
 
 const char* beacon_texts[] = {
     "LoRaHAM_Pi PiGate - loraham.de | hier könnte Ihre Werbung stehen!",
