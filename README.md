@@ -20,6 +20,8 @@ First code for the LoRaHAM Pi hardware | https://www.loraham.de/produkt/loraham-
     sudo apt install liblgpio-dev -y
     sudo apt install libncurses5-dev libncursesw5-dev -y
     sudo apt install socat -y
+    
+    git clone https://github.com/LoRaHAM/LoRaHAM_Daemon ~/LoRaHAM
 
     git clone https://github.com/jgromes/RadioLib ~/RadioLib
 
@@ -177,6 +179,8 @@ Erster Code für die LoRaHAM Pi Hardware | https://www.loraham.de/produkt/loraha
     sudo apt install liblgpio-dev -y
     sudo apt install libncurses5-dev libncursesw5-dev -y
     sudo apt install socat -y
+    
+    git clone https://github.com/LoRaHAM/LoRaHAM_Daemon ~/LoRaHAM
     
     git clone https://github.com/jgromes/RadioLib ~/RadioLib
     
