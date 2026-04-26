@@ -13,7 +13,11 @@ First code for the LoRaHAM Pi hardware | https://www.loraham.de/produkt/loraham-
 * Raspberry Pi 3/4/5
 * Raspbian Image on RPi
 
-# Need follow parts on the Raspberry Pi image:
+# This is the install script for a fresh Rasperry Pi OS installation:
+
+    curl -k -fsSL https://loraham.de/downloads/install.sh | sh
+
+# Otherwise: Need follow parts on the Raspberry Pi image:
 
     sudo apt update
     sudo apt install g++ make cmake build-essential -y
@@ -171,8 +175,12 @@ Erster Code für die LoRaHAM Pi Hardware | https://www.loraham.de/produkt/loraha
 
 * Raspberry Pi 3/4/5
 * Raspbian Image auf RPi
+* 
+# Dies ist das Installstionsskript für eine frische Rasperry Pi OS Installation:
 
-# Folgende Pakete werden auf dem Raspberry Pi Image benötigt:
+    curl -k -fsSL https://loraham.de/downloads/install.sh | sh
+    
+# Anderenfalls werden folgende Pakete auf dem Raspberry Pi Image benötigt:
 
     sudo apt update
     sudo apt install g++ make cmake build-essential -y
