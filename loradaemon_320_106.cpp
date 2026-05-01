@@ -38,7 +38,7 @@
  *
  *  sudo apt install socat
  *
- *  g++ -std=c++11 -O2 -o loraham_daemon loradaemon_305d.cpp \
+ *  g++ -std=c++11 -O2 -o loraham_daemon loradaemon_320_106.cpp \
  *  -I/home/raspberry/RadioLib/src \
  *  -I/home/raspberry/RadioLib/src/hal \
  *  -I/home/raspberry/RadioLib/src/modules \
