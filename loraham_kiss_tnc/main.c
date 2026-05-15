@@ -1,7 +1,9 @@
+#include "ax25.h"
 #include "config.h"
 #include "kiss.h"
 #include "loraham_kiss_tnc.h"
 #include "tcp_server.h"
+#include "tnc2.h"
 
 #include <errno.h>
 #include <getopt.h>
@@ -276,6 +278,58 @@ static void print_config(const lhkt_config_t *cfg)
 }
 
 /*
+ * Decode one KISS data frame into AX.25 UI and TNC2 text.
+ * This is still dry-run only: no LoRaHAM socket write yet.
+ */
+static int handle_kiss_data_frame(const kiss_frame_t *kiss_frame,
+                                  lhkt_stats_t *stats)
+{
+    ax25_frame_t ax25;
+    char tnc2[LHKT_TNC2_MAX_LINE];
+    size_t tnc2_len;
+    int ret;
+
+    if (!kiss_frame) {
+        return LHKT_ERR;
+    }
+
+    ret = ax25_decode_ui(kiss_frame->data, kiss_frame->data_len, &ax25);
+    if (ret != LHKT_OK) {
+        if (stats) {
+            stats->ax25_drop++;
+        }
+
+        printf("[AX25] Drop invalid/non-UI frame: err=%d len=%zu\n",
+               ret,
+               kiss_frame->data_len);
+        return ret;
+    }
+
+    if (stats) {
+        stats->ax25_rx++;
+    }
+
+    ret = tnc2_format_line(&ax25, tnc2, sizeof(tnc2), &tnc2_len);
+    if (ret != LHKT_OK) {
+        if (stats) {
+            stats->tnc2_drop++;
+        }
+
+        printf("[TNC2] Drop frame, format failed: err=%d\n", ret);
+        return ret;
+    }
+
+    if (stats) {
+        stats->tnc2_tx++;
+    }
+
+    printf("[TNC2] %s\n", tnc2);
+
+    return LHKT_OK;
+}
+
+
+/*
  * Temporary TCP/KISS loop:
  * Accept one client, decode KISS frames and log them.
  * LoRaHAM socket handling follows in the next step.
@@ -353,6 +407,7 @@ static int run_tcp_skeleton(const lhkt_config_t *cfg, lhkt_stats_t *stats)
                     printf("[KISS] Data frame: port=%u len=%zu\n",
                            kiss_frame.port,
                            kiss_frame.data_len);
+                    handle_kiss_data_frame(&kiss_frame, stats);
                 } else if (cfg->verbose) {
                     printf("[KISS] Command: port=%u cmd=%u len=%zu\n",
                            kiss_frame.port,
