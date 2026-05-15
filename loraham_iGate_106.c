@@ -123,6 +123,7 @@ static char lon_str[20]        = "00957.60E";
 static char lat_filter[20]     = "48.40";
 static char lon_filter[20]     = "9.90";
 static char filter_radius[10]  = "5";
+static char symbol_table       = '/';
 static char symbol[2]          = "&";
 static int  digi_mode          = DIGI_WIDE1;
 static int  repeater_only      = 0;     /* 0=iGate+Digi, 1=Nur Repeater      */
@@ -859,11 +860,23 @@ static const char *get_next_beacon(void) {
     return text;
 }
 
+static void set_aprs_symbol(const char *arg) {
+    if (strlen(arg) == 2 && (arg[0] == '/' || arg[0] == '\\')) {
+        symbol_table = arg[0];
+        symbol[0] = arg[1];
+    } else {
+        symbol_table = '/';
+        symbol[0] = arg[0];
+    }
+
+    symbol[1] = '\0';
+}
+
 static void send_is_beacon(void) {
     if (aprs_sock < 0 || is_state < IS_VERIFIED) return;
     char pkt[512];
-    snprintf(pkt, sizeof(pkt), "%s>APLG01,TCPIP*:!%s/%s%s%s\r\n",
-             my_call, lat_str, lon_str, symbol, get_next_beacon());
+    snprintf(pkt, sizeof(pkt), "%s>APLG01,TCPIP*:!%s%c%s%s%s\r\n",
+             my_call, lat_str, symbol_table, lon_str, symbol, get_next_beacon());
     if (send(aprs_sock, pkt, strlen(pkt), MSG_NOSIGNAL) < 0) {
         is_disconnect();
     } else {
@@ -874,8 +887,8 @@ static void send_is_beacon(void) {
 static void send_rf_beacon(void) {
     if (data_s < 0) return;
     char payload[400];
-    snprintf(payload, sizeof(payload), "%s>APLG01,WIDE1-1:!%s/%s%s%s",
-             my_call, lat_str, lon_str, symbol, get_next_beacon());
+    snprintf(payload, sizeof(payload), "%s>APLG01,WIDE1-1:!%s%c%s%s%s",
+             my_call, lat_str, symbol_table, lon_str, symbol, get_next_beacon());
     safe_lora_send(payload, (int)strlen(payload));
     log_print("[BEACON-RF]  Gesendet auf %s MHz\n", freq_tx);
 }
@@ -954,7 +967,7 @@ int main(int argc, char **argv) {
             case 'x': strncpy(lat_filter,    optarg, sizeof(lat_filter)-1);    break;
             case 'y': strncpy(lon_filter,    optarg, sizeof(lon_filter)-1);    break;
             case 'R': strncpy(filter_radius, optarg, sizeof(filter_radius)-1); break;
-            case 'S': symbol[0] = optarg[0];                                   break;
+            case 'S': set_aprs_symbol(optarg);                                 break;
             case 'D': digi_mode    = atoi(optarg);                             break;
             case 'm': enable_is_to_rf = 1;                                     break;
             case 'p': repeater_only   = 1;                                     break;
