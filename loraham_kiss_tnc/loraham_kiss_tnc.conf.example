@@ -1,0 +1,31 @@
+# LoRaHAM KISS TNC sample config
+# Comments start with '#'. CLI options override this file.
+
+kiss_host=127.0.0.1
+kiss_port=8001
+
+data_socket=/tmp/lora433.sock
+conf_socket=/tmp/loraconf433.sock
+
+# TX is enabled by default.
+# Set rx_only=1 for receive-only testing.
+rx_only=0
+
+verbose=0
+stats_interval=60
+
+mode=LORA
+
+# Optional frequency/config values.
+# Leave unset/commented if the daemon should keep its current config.
+# rx_freq=433.775
+# tx_freq=433.900
+
+sf=12
+bw=125.0
+cr=5
+crc=1
+preamble=8
+syncword=0x12
+ldro=1
+power=17
