@@ -60,4 +60,20 @@ $CC $CFLAGS \
   $LDFLAGS
 /tmp/test_lhkt_cli
 
+
+echo "[TEST] bridge"
+$CC $CFLAGS -DLHKT_TEST \
+  -o /tmp/test_lhkt_bridge \
+  loraham_kiss_tnc/loraham_kiss_tnc.c \
+  loraham_kiss_tnc/config.c \
+  loraham_kiss_tnc/tcp_server.c \
+  loraham_kiss_tnc/loraham_sock.c \
+  loraham_kiss_tnc/bridge.c \
+  loraham_kiss_tnc/ax25.c \
+  loraham_kiss_tnc/tnc2.c \
+  loraham_kiss_tnc/kiss.c \
+  loraham_kiss_tnc/tests/test_bridge.c \
+  $LDFLAGS
+/tmp/test_lhkt_bridge
+
 echo "[OK] All tests passed"

@@ -232,6 +232,16 @@ static int send_tnc2_to_kiss_client(int client_fd,
     return LHKT_OK;
 }
 
+
+#ifdef LHKT_TEST
+int lhkt_test_send_tnc2_to_kiss_client(int client_fd,
+                                       const char *tnc2,
+                                       lhkt_stats_t *stats)
+{
+    return send_tnc2_to_kiss_client(client_fd, tnc2, stats);
+}
+#endif
+
 static int handle_loraham_rx_chunk(int client_fd,
                                    loraham_rx_state_t *rx_state,
                                    const uint8_t *buf,
