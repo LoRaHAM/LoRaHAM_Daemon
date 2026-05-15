@@ -256,7 +256,7 @@ static int loraham_emit_tnc2(loraham_rx_state_t *state,
 
 /*
  * Search for 0x3c 0xff 0x01 before accepting text.
- * data_len == 0 flushes a pending packet without CR/LF.
+ * data_len == 0 drains queued data or flushes an idle packet.
  */
 
 int loraham_extract_tnc2(loraham_rx_state_t *state,
@@ -268,12 +268,14 @@ int loraham_extract_tnc2(loraham_rx_state_t *state,
 {
     uint8_t b;
     int ret;
+    int flush_on_empty;
 
     if (!state || !tnc2_out || !tnc2_len) {
         return LHKT_ERR;
     }
 
     *tnc2_len = 0;
+    flush_on_empty = (data_len == 0 && state->pending_len == 0);
 
     if (data_len > 0 && !data) {
         return LHKT_ERR;
@@ -361,7 +363,7 @@ int loraham_extract_tnc2(loraham_rx_state_t *state,
         }
     }
 
-    if (data_len == 0) {
+    if (flush_on_empty) {
         return loraham_emit_tnc2(state,
                                  tnc2_out,
                                  tnc2_size,

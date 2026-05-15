@@ -213,6 +213,33 @@ static void test_extract_oversized_rx_packet(void)
 }
 
 
+
+static void test_pending_drain_does_not_flush_tail(void)
+{
+    loraham_rx_state_t state;
+    char out[LHKT_TNC2_MAX_LINE];
+    size_t out_len = 0;
+
+    const uint8_t data[] = {
+        LORAHAM_APRS_HDR0, LORAHAM_APRS_HDR1, LORAHAM_APRS_HDR2,
+        'A','>','B',':','1','\n',
+        LORAHAM_APRS_HDR0, LORAHAM_APRS_HDR1, LORAHAM_APRS_HDR2,
+        'C','>','D',':','2'
+    };
+
+    loraham_rx_state_init(&state);
+
+    assert(loraham_extract_tnc2(&state, data, sizeof(data), out, sizeof(out), &out_len) == 1);
+    assert(strcmp(out, "A>B:1") == 0);
+
+    assert(loraham_extract_tnc2(&state, NULL, 0, out, sizeof(out), &out_len) == 0);
+    assert(out_len == 0);
+
+    assert(loraham_extract_tnc2(&state, NULL, 0, out, sizeof(out), &out_len) == 1);
+    assert(strcmp(out, "C>D:2") == 0);
+}
+
+
 static void test_ignore_noise_without_header(void)
 {
     loraham_rx_state_t state;
@@ -239,6 +266,7 @@ int main(void)
     test_extract_noise_before_header();
     test_extract_invalid_header_recovery();
     test_extract_oversized_rx_packet();
+    test_pending_drain_does_not_flush_tail();
     test_ignore_noise_without_header();
 
     puts("test_loraham_sock: OK");

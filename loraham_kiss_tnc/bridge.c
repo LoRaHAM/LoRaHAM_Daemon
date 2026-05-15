@@ -11,12 +11,15 @@
 #include <stdio.h>
 #include <string.h>
 #include <sys/select.h>
+#include <sys/time.h>
 #include <unistd.h>
 
 /*
  * Bridge logic.
  * One KISS/TCP client is bridged to one LoRaHAM daemon data socket.
  */
+
+#define LHKT_RX_IDLE_FLUSH_USEC 50000
 
 static int write_all_fd(int fd, const uint8_t *buf, size_t len)
 {
@@ -278,11 +281,8 @@ static int handle_loraham_rx_chunk(int client_fd,
             return ret;
         }
 
-        /*
-         * Drain queued packets. A zero-length call also flushes
-         * one packet without CR/LF.
-         */
-        if (!buf) {
+        /* Drain queued complete packets without forcing tail flush. */
+        if (rx_state->pending_len == 0) {
             break;
         }
 
@@ -306,6 +306,8 @@ int lhkt_bridge_run(const lhkt_config_t *cfg, lhkt_stats_t *stats)
     int ret;
     int max_fd;
     fd_set rfds;
+    struct timeval tv;
+    struct timeval *timeout;
 
     kiss_decoder_t kiss_dec;
     kiss_frame_t kiss_frame;
@@ -381,7 +383,14 @@ int lhkt_bridge_run(const lhkt_config_t *cfg, lhkt_stats_t *stats)
             }
         }
 
-        ret = select(max_fd + 1, &rfds, NULL, NULL, NULL);
+        timeout = NULL;
+        if (client_fd >= 0 && lora_rx.seen_header && lora_rx.len > 0) {
+            tv.tv_sec = 0;
+            tv.tv_usec = LHKT_RX_IDLE_FLUSH_USEC;
+            timeout = &tv;
+        }
+
+        ret = select(max_fd + 1, &rfds, NULL, NULL, timeout);
         if (ret < 0) {
             if (errno == EINTR) {
                 continue;
@@ -389,6 +398,23 @@ int lhkt_bridge_run(const lhkt_config_t *cfg, lhkt_stats_t *stats)
 
             fprintf(stderr, "[ERR] select failed\n");
             break;
+        }
+
+        if (ret == 0) {
+            ret = handle_loraham_rx_chunk(client_fd,
+                                          &lora_rx,
+                                          NULL,
+                                          0,
+                                          stats);
+            if (ret == LHKT_ERR) {
+                printf("[KISS] Client write failed, disconnecting\n");
+                lhkt_tcp_server_close(client_fd);
+                client_fd = -1;
+                kiss_decoder_init(&kiss_dec);
+                kiss_params_init(&kiss_params);
+                printf("[KISS] Waiting for client...\n");
+            }
+            continue;
         }
 
         if (client_fd < 0 && FD_ISSET(listen_fd, &rfds)) {
