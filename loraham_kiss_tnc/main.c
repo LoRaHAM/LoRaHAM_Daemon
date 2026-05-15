@@ -9,6 +9,7 @@
 #include <errno.h>
 #include <getopt.h>
 #include <stdint.h>
+#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -283,14 +284,16 @@ static void print_config(const lhkt_config_t *cfg)
  * This is still dry-run only: no LoRaHAM socket write yet.
  */
 static int handle_kiss_data_frame(const kiss_frame_t *kiss_frame,
-                                  lhkt_stats_t *stats)
+                                  const lhkt_config_t *cfg,
+                                  lhkt_stats_t *stats,
+                                  int data_fd)
 {
     ax25_frame_t ax25;
     char tnc2[LHKT_TNC2_MAX_LINE];
     size_t tnc2_len;
     int ret;
 
-    if (!kiss_frame) {
+    if (!kiss_frame || !cfg) {
         return LHKT_ERR;
     }
 
@@ -349,7 +352,34 @@ static int handle_kiss_data_frame(const kiss_frame_t *kiss_frame,
             return ret;
         }
 
-        printf("[LoRaHAM] TX dry-run packet len=%zu\n", lora_len);
+        if (cfg->rx_only) {
+            printf("[LoRaHAM] RX-only: TX suppressed packet len=%zu\n", lora_len);
+            return LHKT_OK;
+        }
+
+        if (data_fd < 0) {
+            if (stats) {
+                stats->loraham_drop++;
+            }
+
+            printf("[LoRaHAM] TX drop: data socket not connected\n");
+            return LHKT_ERR;
+        }
+
+        printf("[LoRaHAM] TX packet len=%zu\n", lora_len);
+
+        if (loraham_sock_write(data_fd, lora_pkt, lora_len) < 0) {
+            if (stats) {
+                stats->loraham_drop++;
+            }
+
+            printf("[LoRaHAM] TX write failed\n");
+            return LHKT_ERR;
+        }
+
+        if (stats) {
+            stats->loraham_tx++;
+        }
     }
 
     return LHKT_OK;
@@ -373,9 +403,39 @@ static int run_tcp_skeleton(const lhkt_config_t *cfg, lhkt_stats_t *stats)
     kiss_decoder_t kiss_dec;
     kiss_frame_t kiss_frame;
     kiss_params_t kiss_params;
+    int data_fd;
+    int conf_fd;
+
+    data_fd = -1;
+    conf_fd = -1;
 
     kiss_decoder_init(&kiss_dec);
     kiss_params_init(&kiss_params);
+
+    conf_fd = loraham_sock_connect(cfg->conf_socket);
+    if (conf_fd >= 0) {
+        if (loraham_send_config(conf_fd, cfg) == LHKT_OK) {
+            printf("[LoRaHAM] Config sent: %s\n", cfg->conf_socket);
+        } else {
+            printf("[LoRaHAM] Config send failed: %s\n", cfg->conf_socket);
+        }
+        lhkt_tcp_server_close(conf_fd);
+    } else {
+        printf("[LoRaHAM] Config socket not connected: %s\n", cfg->conf_socket);
+    }
+
+    if (!cfg->rx_only) {
+        data_fd = loraham_sock_connect(cfg->data_socket);
+        if (data_fd < 0) {
+            fprintf(stderr, "[ERR] LoRaHAM data socket connect failed: %s\n",
+                    cfg->data_socket);
+            return 1;
+        }
+
+        printf("[LoRaHAM] Data socket connected: %s\n", cfg->data_socket);
+    } else {
+        printf("[LoRaHAM] RX-only mode: TX disabled\n");
+    }
 
     listen_fd = lhkt_tcp_server_listen(cfg->kiss_host, cfg->kiss_port);
     if (listen_fd < 0) {
@@ -434,7 +494,7 @@ static int run_tcp_skeleton(const lhkt_config_t *cfg, lhkt_stats_t *stats)
                     printf("[KISS] Data frame: port=%u len=%zu\n",
                            kiss_frame.port,
                            kiss_frame.data_len);
-                    handle_kiss_data_frame(&kiss_frame, stats);
+                    handle_kiss_data_frame(&kiss_frame, cfg, stats, data_fd);
                 } else if (cfg->verbose) {
                     printf("[KISS] Command: port=%u cmd=%u len=%zu\n",
                            kiss_frame.port,
@@ -455,6 +515,7 @@ static int run_tcp_skeleton(const lhkt_config_t *cfg, lhkt_stats_t *stats)
 
     lhkt_tcp_server_close(client_fd);
     lhkt_tcp_server_close(listen_fd);
+    lhkt_tcp_server_close(data_fd);
 
     return 0;
 }
@@ -465,6 +526,8 @@ int main(int argc, char **argv)
     lhkt_stats_t stats;
     const char *config_path;
     int ret;
+
+    signal(SIGPIPE, SIG_IGN);
 
     lhkt_config_defaults(&cfg);
     lhkt_stats_init(&stats);
