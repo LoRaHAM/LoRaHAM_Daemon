@@ -3,7 +3,7 @@ set -euo pipefail
 
 cd "$(dirname "$0")/.."
 
-OUT="${1:-/tmp/loraham_kiss_tnc}"
+OUT="${1:-loraham_kiss_tnc/loraham_kiss_tnc}"
 
 gcc -Wall -Wextra -std=c11 -I loraham_kiss_tnc \
   -o "$OUT" \

@@ -9,8 +9,6 @@ APRS client <-> KISS/TCP <-> loraham_kiss_tnc <-> /tmp/lora433.sock <-> loraham_
 ```
 
 
-
-
 ## Build
 
 ```bash
@@ -26,7 +24,7 @@ APRS client <-> KISS/TCP <-> loraham_kiss_tnc <-> /tmp/lora433.sock <-> loraham_
 ## Run
 
 ```bash
-/tmp/loraham_kiss_tnc --help
+./loraham_kiss_tnc/loraham_kiss_tnc --help
 ```
 
 ## Usage
@@ -45,7 +43,6 @@ Options:
       --rx-freq MHz        RX/config frequency
       --tx-freq MHz        TX/config frequency
       --rx-only            Disable TX
-      --tx                 Enable TX
   -v, --verbose            Verbose output
   -h, --help               Show help
 

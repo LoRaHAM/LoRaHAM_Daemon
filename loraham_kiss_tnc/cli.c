@@ -27,7 +27,6 @@ void lhkt_cli_print_usage(const char *prog)
     printf("      --rx-freq MHz        RX/config frequency\n");
     printf("      --tx-freq MHz        TX/config frequency\n");
     printf("      --rx-only            Disable TX\n");
-    printf("      --tx                 Enable TX\n");
     printf("  -v, --verbose            Verbose output\n");
     printf("  -h, --help               Show help\n");
 }
@@ -126,8 +125,7 @@ static int parse_cli_args(int argc, char **argv, lhkt_config_t *cfg)
         OPT_CONF_SOCKET,
         OPT_RX_FREQ,
         OPT_TX_FREQ,
-        OPT_RX_ONLY,
-        OPT_TX
+        OPT_RX_ONLY
     };
 
     static const struct option long_opts[] = {
@@ -139,7 +137,6 @@ static int parse_cli_args(int argc, char **argv, lhkt_config_t *cfg)
         { "rx-freq",     required_argument, 0, OPT_RX_FREQ },
         { "tx-freq",     required_argument, 0, OPT_TX_FREQ },
         { "rx-only",     no_argument,       0, OPT_RX_ONLY },
-        { "tx",          no_argument,       0, OPT_TX },
         { "verbose",     no_argument,       0, 'v' },
         { "help",        no_argument,       0, 'h' },
         { 0, 0, 0, 0 }
@@ -214,10 +211,6 @@ static int parse_cli_args(int argc, char **argv, lhkt_config_t *cfg)
 
         case OPT_RX_ONLY:
             cfg->rx_only = 1;
-            break;
-
-        case OPT_TX:
-            cfg->rx_only = 0;
             break;
 
         default:
