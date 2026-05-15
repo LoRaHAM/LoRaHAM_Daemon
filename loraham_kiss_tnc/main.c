@@ -1,4 +1,5 @@
 #include "config.h"
+#include "kiss.h"
 #include "loraham_kiss_tnc.h"
 #include "tcp_server.h"
 
@@ -275,9 +276,9 @@ static void print_config(const lhkt_config_t *cfg)
 }
 
 /*
- * Temporary TCP skeleton:
- * Accept one client and read bytes until the client disconnects.
- * KISS decoding and LoRaHAM socket handling follow in the next step.
+ * Temporary TCP/KISS loop:
+ * Accept one client, decode KISS frames and log them.
+ * LoRaHAM socket handling follows in the next step.
  */
 static int run_tcp_skeleton(const lhkt_config_t *cfg, lhkt_stats_t *stats)
 {
@@ -286,6 +287,14 @@ static int run_tcp_skeleton(const lhkt_config_t *cfg, lhkt_stats_t *stats)
     char peer[64];
     uint8_t buf[512];
     ssize_t n;
+    size_t i;
+    int kret;
+    kiss_decoder_t kiss_dec;
+    kiss_frame_t kiss_frame;
+    kiss_params_t kiss_params;
+
+    kiss_decoder_init(&kiss_dec);
+    kiss_params_init(&kiss_params);
 
     listen_fd = lhkt_tcp_server_listen(cfg->kiss_host, cfg->kiss_port);
     if (listen_fd < 0) {
@@ -326,12 +335,39 @@ static int run_tcp_skeleton(const lhkt_config_t *cfg, lhkt_stats_t *stats)
             break;
         }
 
-        if (stats) {
-            stats->kiss_rx++;
-        }
-
         if (cfg->verbose) {
             printf("[KISS] %zd bytes received\n", n);
+        }
+
+        for (i = 0; i < (size_t)n; i++) {
+            kret = kiss_decode_byte(&kiss_dec, buf[i], &kiss_frame);
+
+            if (kret == 1) {
+                if (stats) {
+                    stats->kiss_rx++;
+                }
+
+                kiss_handle_command(&kiss_params, &kiss_frame);
+
+                if (kiss_frame.command == KISS_CMD_DATA) {
+                    printf("[KISS] Data frame: port=%u len=%zu\n",
+                           kiss_frame.port,
+                           kiss_frame.data_len);
+                } else if (cfg->verbose) {
+                    printf("[KISS] Command: port=%u cmd=%u len=%zu\n",
+                           kiss_frame.port,
+                           kiss_frame.command,
+                           kiss_frame.data_len);
+                }
+            } else if (kret < 0) {
+                if (stats) {
+                    stats->kiss_drop++;
+                }
+
+                if (cfg->verbose) {
+                    printf("[KISS] Dropped malformed frame: err=%d\n", kret);
+                }
+            }
         }
     }
 
