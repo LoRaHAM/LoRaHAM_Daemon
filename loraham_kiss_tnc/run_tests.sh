@@ -44,4 +44,14 @@ $CC $CFLAGS \
   loraham_kiss_tnc/tests/test_kiss.c
 /tmp/test_lhkt_kiss
 
+
+echo "[TEST] cli"
+$CC $CFLAGS \
+  -o /tmp/test_lhkt_cli \
+  loraham_kiss_tnc/loraham_kiss_tnc.c \
+  loraham_kiss_tnc/config.c \
+  loraham_kiss_tnc/cli.c \
+  loraham_kiss_tnc/tests/test_cli.c
+/tmp/test_lhkt_cli
+
 echo "[OK] All tests passed"
