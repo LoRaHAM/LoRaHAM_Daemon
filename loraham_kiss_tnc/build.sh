@@ -16,6 +16,7 @@ gcc -Wall -Wextra -std=c11 -I loraham_kiss_tnc \
   loraham_kiss_tnc/tnc2.c \
   loraham_kiss_tnc/loraham_sock.c \
   loraham_kiss_tnc/loraham_kiss_tnc.c \
-  loraham_kiss_tnc/config.c
+  loraham_kiss_tnc/config.c \
+  $LDFLAGS
 
 echo "[OK] Built $OUT"
