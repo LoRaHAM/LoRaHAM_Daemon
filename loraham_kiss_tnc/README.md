@@ -7,7 +7,11 @@ It exposes a KISS/TCP port for APRS clients and talks to the LoRaHAM daemon thro
 ```text
 APRS client <-> KISS/TCP <-> loraham_kiss_tnc <-> /tmp/lora433.sock <-> loraham_daemon
 ```
-
+## Limitations
+- single KISS/TCP client
+- KISS port 0 only
+- APRS/TNC2 text payload only
+- TX path intentionally blocks during tx timing
 
 ## Build
 
@@ -30,7 +34,7 @@ APRS client <-> KISS/TCP <-> loraham_kiss_tnc <-> /tmp/lora433.sock <-> loraham_
 ## Usage
 
 ```bash
-Usage: /tmp/loraham_kiss_tnc [OPTIONS]
+Usage: ./loraham_kiss_tnc/loraham_kiss_tnc [OPTIONS]
 
 LoRaHAM KISS/TCP TNC bridge
 
@@ -43,6 +47,8 @@ Options:
       --rx-freq MHz        RX/config frequency
       --tx-freq MHz        TX/config frequency
       --rx-only            Disable TX
+      --tx-settle-ms MS    Wait after TX freq switch
+      --tx-return-ms MS    Wait after TX before RX restore
   -v, --verbose            Verbose output
   -h, --help               Show help
 

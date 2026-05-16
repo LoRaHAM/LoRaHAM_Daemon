@@ -68,6 +68,38 @@ static void test_config_and_cli_override(void)
     unlink(path);
 }
 
+
+static void test_timing_options(void)
+{
+    lhkt_config_t cfg;
+    char *argv[] = {
+        "test_cli",
+        "--tx-settle-ms", "250",
+        "--tx-return-ms", "750",
+        NULL
+    };
+
+    lhkt_config_defaults(&cfg);
+
+    assert(lhkt_cli_apply(argc_of(argv), argv, &cfg) == LHKT_OK);
+    assert(cfg.tx_settle_ms == 250);
+    assert(cfg.tx_return_ms == 750);
+}
+
+static void test_invalid_timing_option(void)
+{
+    lhkt_config_t cfg;
+    char *argv[] = {
+        "test_cli",
+        "--tx-return-ms", "60001",
+        NULL
+    };
+
+    lhkt_config_defaults(&cfg);
+
+    assert(lhkt_cli_apply(argc_of(argv), argv, &cfg) == LHKT_ERR_FORMAT);
+}
+
 static void test_invalid_port(void)
 {
     lhkt_config_t cfg;
@@ -131,6 +163,8 @@ int main(void)
 {
     test_rx_only_and_port();
     test_config_and_cli_override();
+    test_timing_options();
+    test_invalid_timing_option();
     test_invalid_port();
     test_missing_config_file();
     test_help_exits_zero();
