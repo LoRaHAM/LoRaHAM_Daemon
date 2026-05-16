@@ -3,6 +3,7 @@
 
 #include <stddef.h>
 #include <stdint.h>
+#include <sys/select.h>
 
 /* --- DATA TX chunking --- */
 
@@ -19,5 +20,12 @@ size_t data_tx_for_each_chunk(uint8_t *buf,
                               size_t len,
                               DataTxChunkHandler handler,
                               void *ctx);
+
+void data_tx_process_clients(const char *tag,
+                             int *clients,
+                             int max_clients,
+                             const fd_set *readfds,
+                             DataTxChunkHandler handler,
+                             void *ctx);
 
 #endif

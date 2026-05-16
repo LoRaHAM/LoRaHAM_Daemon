@@ -1303,35 +1303,14 @@ static int send_data868_chunk(uint8_t *chunk, size_t len, size_t offset, void *c
 
 static void process_data433_clients(const fd_set *readfds)
 {
-    for(int i=0;i<MAX_CLIENTS;i++){
-        if(client_set_slot_ready(client_data433, i, readfds)) {
-            uint8_t large_buf[2048];
-            ssize_t n = client_set_read_slot(client_data433, i, large_buf, sizeof(large_buf));
-
-            if(n > 0) {
-                printf("[DEBUG 433] %zd Bytes vom Socket erhalten. Zerteile in LoRa-Pakete...\n", n);
-
-                data_tx_for_each_chunk(large_buf, (size_t)n, send_data433_chunk, NULL);
-            }
-        }
-    }
+    data_tx_process_clients("433", client_data433, MAX_CLIENTS,
+                            readfds, send_data433_chunk, NULL);
 }
 
 static void process_data868_clients(const fd_set *readfds)
 {
-    for(int i=0;i<MAX_CLIENTS;i++){
-
-        if(client_set_slot_ready(client_data868, i, readfds)) {
-            uint8_t large_buf[2048];
-            ssize_t n = client_set_read_slot(client_data868, i, large_buf, sizeof(large_buf));
-
-            if(n > 0) {
-                printf("[DEBUG 868] %zd Bytes vom Socket erhalten. Zerteile in LoRa-Pakete...\n", n);
-
-                data_tx_for_each_chunk(large_buf, (size_t)n, send_data868_chunk, NULL);
-            }
-        }
-    }
+    data_tx_process_clients("868", client_data868, MAX_CLIENTS,
+                            readfds, send_data868_chunk, NULL);
 }
 
 // --- Unix socket setup moved to unix_socket.cpp ---

@@ -227,7 +227,9 @@ build_one_data_tx_test() {
     -I"$SCRIPT_DIR" \
     -o "$out" \
     "$src" \
-    "$SCRIPT_DIR/data_tx.cpp"
+    "$SCRIPT_DIR/data_tx.cpp" \
+    "$SCRIPT_DIR/client_set.cpp" \
+    "$SCRIPT_DIR/event_loop.cpp"
 
   echo "Built test:   $out"
 }
