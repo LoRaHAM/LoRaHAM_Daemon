@@ -795,6 +795,7 @@ int lhkt_bridge_run(const lhkt_config_t *cfg, lhkt_stats_t *stats)
                     client_fd = -1;
                     kiss_decoder_init(&kiss_dec);
                     kiss_params_init(&kiss_params);
+                    loraham_rx_state_init(&lora_rx);
                     printf("[KISS] Waiting for client...\n");
                 }
             }
