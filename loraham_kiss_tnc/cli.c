@@ -24,8 +24,8 @@ void lhkt_cli_print_usage(const char *prog)
     printf("      --kiss-port PORT     KISS/TCP bind port\n");
     printf("      --data-socket PATH   LoRaHAM data socket\n");
     printf("      --conf-socket PATH   LoRaHAM config socket\n");
-    printf("      --rx-freq MHz        RX/config frequency\n");
-    printf("      --tx-freq MHz        TX/config frequency\n");
+    printf("      --rx-freq MHz        RX frequency\n");
+    printf("      --tx-freq MHz        TX frequency\n");
     printf("      --rx-only            Disable TX\n");
     printf("      --tx-settle-ms MS    Wait after TX freq switch\n");
     printf("      --tx-return-ms MS    Wait after TX before RX restore\n");
