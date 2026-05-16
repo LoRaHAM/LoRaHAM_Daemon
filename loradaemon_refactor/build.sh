@@ -156,7 +156,26 @@ build_one_test() {
   echo "Built test:   $out"
 }
 
+build_one_cpp_test() {
+  local src="$1"
+  local out="$2"
+
+  "$cxx" \
+    -std=c++11 \
+    -Wall \
+    -Wextra \
+    -O2 \
+    -I"$TEST_DIR" \
+    -I"$SCRIPT_DIR" \
+    -o "$out" \
+    "$src" \
+    "$SCRIPT_DIR/config_parser.cpp"
+
+  echo "Built test:   $out"
+}
+
 build_tests() {
+  build_one_cpp_test "$TEST_DIR/test_config_parser.cpp" "$TEST_DIR/test_config_parser"
   build_one_test "$TEST_DIR/test_interface_baseline.c" "$TEST_DIR/test_interface_baseline"
   build_one_test "$TEST_DIR/test_config_stream.c" "$TEST_DIR/test_config_stream"
   build_one_test "$TEST_DIR/test_client_lifecycle.c" "$TEST_DIR/test_client_lifecycle"

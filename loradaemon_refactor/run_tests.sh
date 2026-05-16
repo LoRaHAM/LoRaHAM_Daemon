@@ -59,6 +59,7 @@ fi
 "$SCRIPT_DIR/build.sh"
 
 tests=(
+  "$TEST_DIR/test_config_parser"
   "$TEST_DIR/test_interface_baseline"
   "$TEST_DIR/test_config_stream"
   "$TEST_DIR/test_client_lifecycle"
