@@ -166,24 +166,16 @@ static int parse_optional_freq(const char *value,
     return LHKT_OK;
 }
 
-static int is_safe_token(const char *text)
+static int is_allowed_mode(const char *text)
 {
-    size_t i;
-
-    if (!text || text[0] == '\0') {
+    if (!text) {
         return 0;
     }
 
-    for (i = 0; text[i] != '\0'; i++) {
-        if (!isalnum((unsigned char)text[i]) &&
-            text[i] != '_' &&
-            text[i] != '-') {
-            return 0;
-        }
-    }
-
-    return 1;
+    return strcmp(text, "LORA") == 0 ||
+           strcmp(text, "FSK") == 0;
 }
+
 
 /*
  * Parse one config line.
@@ -245,7 +237,7 @@ int lhkt_config_parse_line(lhkt_config_t *cfg, char *line, unsigned int line_no)
     }
 
     if (strcmp(key, "mode") == 0) {
-        if (!is_safe_token(value)) {
+        if (!is_allowed_mode(value)) {
             return LHKT_ERR_FORMAT;
         }
 

@@ -37,6 +37,7 @@ static void test_parse_line(void)
     char line3[] = "syncword = 0x34";
     char line4[] = "rx_freq = 433.775";
     char line5[] = "# full line comment";
+    char line6[] = "mode = FSK";
 
     lhkt_config_defaults(&cfg);
 
@@ -54,6 +55,8 @@ static void test_parse_line(void)
     assert(cfg.rx_freq > 433.774 && cfg.rx_freq < 433.776);
 
     assert(lhkt_config_parse_line(&cfg, line5, 5) == LHKT_OK);
+    assert(lhkt_config_parse_line(&cfg, line6, 6) == LHKT_OK);
+    assert(strcmp(cfg.mode, "FSK") == 0);
 }
 
 static void test_hash_only_comments(void)
@@ -133,7 +136,7 @@ static void test_reject_invalid(void)
     char bad2[] = "sf = 99";
     char bad3[] = "unknown_key = value";
     char bad4[] = "not_a_key_value_line";
-    char bad5[] = "mode = LORA FREQ=1";
+    char bad5[] = "mode = BADMODE";
 
     lhkt_config_defaults(&cfg);
 
