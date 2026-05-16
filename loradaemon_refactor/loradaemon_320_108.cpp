@@ -226,7 +226,7 @@ ssize_t recv_raw_nonblocking(int fd, uint8_t *buf, size_t max_size) {
 
 // Wenn du zurück an den Client sendest, kannst du entscheiden:
 // Willst du dem Client die Länge mitschicken oder nur die Rohdaten?
-ssize_t send_raw(int fd, uint8_t *buf, uint8_t len) {
+ssize_t send_raw(int fd, const uint8_t *buf, uint8_t len) {
     // Nur die Daten senden, ohne Längen-Byte vorab
     return write(fd, buf, len);
 }
@@ -246,7 +246,7 @@ ssize_t send_raw(int fd, uint8_t *buf, uint8_t len) {
  * }
  */
 
-ssize_t send_frame(int fd,uint8_t *buf,uint8_t len){
+ssize_t send_frame(int fd,const uint8_t *buf,uint8_t len){
     if(write(fd,&len,1)!=1) return -1;
     return write(fd,buf,len);
 }
