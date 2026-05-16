@@ -61,6 +61,25 @@ static int wait_fd_writable(int fd)
     }
 }
 
+static int add_fd_to_set(int fd, fd_set *set, int *max_fd)
+{
+    if (fd < 0 || !set || !max_fd) {
+        return LHKT_ERR;
+    }
+
+    if (fd >= FD_SETSIZE) {
+        return LHKT_ERR_LONG;
+    }
+
+    FD_SET(fd, set);
+
+    if (fd > *max_fd) {
+        *max_fd = fd;
+    }
+
+    return LHKT_OK;
+}
+
 static int write_all_fd(int fd, const uint8_t *buf, size_t len)
 {
     size_t done;
@@ -463,6 +482,17 @@ static int send_tnc2_to_kiss_client(int client_fd,
 }
 
 #ifdef LHKT_TEST
+int lhkt_test_add_fd_to_set(int fd)
+{
+    fd_set rfds;
+    int max_fd;
+
+    FD_ZERO(&rfds);
+    max_fd = -1;
+
+    return add_fd_to_set(fd, &rfds, &max_fd);
+}
+
 int lhkt_test_send_tnc2_to_kiss_client(int client_fd,
                                        const char *tnc2,
                                        lhkt_stats_t *stats)
@@ -614,19 +644,24 @@ int lhkt_bridge_run(const lhkt_config_t *cfg, lhkt_stats_t *stats)
         max_fd = -1;
 
         if (data_fd >= 0) {
-            FD_SET(data_fd, &rfds);
-            max_fd = data_fd;
+            ret = add_fd_to_set(data_fd, &rfds, &max_fd);
+            if (ret != LHKT_OK) {
+                fprintf(stderr, "[ERR] LoRaHAM data fd too large for select\n");
+                break;
+            }
         }
 
         if (client_fd >= 0) {
-            FD_SET(client_fd, &rfds);
-            if (client_fd > max_fd) {
-                max_fd = client_fd;
+            ret = add_fd_to_set(client_fd, &rfds, &max_fd);
+            if (ret != LHKT_OK) {
+                fprintf(stderr, "[ERR] KISS/TCP client fd too large for select\n");
+                break;
             }
         } else {
-            FD_SET(listen_fd, &rfds);
-            if (listen_fd > max_fd) {
-                max_fd = listen_fd;
+            ret = add_fd_to_set(listen_fd, &rfds, &max_fd);
+            if (ret != LHKT_OK) {
+                fprintf(stderr, "[ERR] KISS/TCP listen fd too large for select\n");
+                break;
             }
         }
 

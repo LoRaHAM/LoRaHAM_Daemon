@@ -8,17 +8,25 @@
 #include <stdio.h>
 #include <string.h>
 #include <sys/socket.h>
+#include <sys/select.h>
 #include <unistd.h>
 
 int lhkt_test_send_tnc2_to_kiss_client(int client_fd,
                                        const char *tnc2,
                                        lhkt_stats_t *stats);
 
+int lhkt_test_add_fd_to_set(int fd);
+
 int lhkt_test_handle_kiss_frame(const kiss_frame_t *kiss_frame,
                                 kiss_params_t *kiss_params,
                                 const lhkt_config_t *cfg,
                                 lhkt_stats_t *stats,
                                 int data_fd);
+
+static void test_fd_set_rejects_too_large_fd(void)
+{
+    assert(lhkt_test_add_fd_to_set(FD_SETSIZE) == LHKT_ERR_LONG);
+}
 
 static void test_tnc2_to_kiss_output(void)
 {
@@ -125,6 +133,7 @@ int main(void)
 {
     signal(SIGPIPE, SIG_IGN);
 
+    test_fd_set_rejects_too_large_fd();
     test_tnc2_to_kiss_output();
     test_nonzero_kiss_port_is_dropped();
     test_invalid_tnc2_is_dropped();
