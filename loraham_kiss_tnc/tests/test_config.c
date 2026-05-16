@@ -18,6 +18,12 @@ static void test_defaults(void)
     assert(cfg.rx_only == 0);
     assert(cfg.verbose == 0);
     assert(cfg.stats_interval == 60);
+    assert(cfg.tx_settle_ms == 100);
+    assert(cfg.tx_return_ms == 1000);
+    assert(cfg.have_rx_freq == 1);
+    assert(cfg.have_tx_freq == 1);
+    assert(cfg.rx_freq > 433.774 && cfg.rx_freq < 433.776);
+    assert(cfg.tx_freq > 433.899 && cfg.tx_freq < 433.901);
     assert(strcmp(cfg.mode, "LORA") == 0);
     assert(cfg.sf == 12);
     assert(cfg.bw == 125.0);
@@ -38,6 +44,8 @@ static void test_parse_line(void)
     char line4[] = "rx_freq = 433.775";
     char line5[] = "# full line comment";
     char line6[] = "mode = FSK";
+    char line7[] = "tx_settle_ms = 250";
+    char line8[] = "tx_return_ms = 750";
 
     lhkt_config_defaults(&cfg);
 
@@ -57,6 +65,12 @@ static void test_parse_line(void)
     assert(lhkt_config_parse_line(&cfg, line5, 5) == LHKT_OK);
     assert(lhkt_config_parse_line(&cfg, line6, 6) == LHKT_OK);
     assert(strcmp(cfg.mode, "FSK") == 0);
+
+    assert(lhkt_config_parse_line(&cfg, line7, 7) == LHKT_OK);
+    assert(cfg.tx_settle_ms == 250);
+
+    assert(lhkt_config_parse_line(&cfg, line8, 8) == LHKT_OK);
+    assert(cfg.tx_return_ms == 750);
 }
 
 static void test_hash_only_comments(void)
@@ -88,6 +102,8 @@ static void test_load_file(void)
     fprintf(fp, "rx_only = true\n");
     fprintf(fp, "verbose = on\n");
     fprintf(fp, "stats_interval = 30\n");
+    fprintf(fp, "tx_settle_ms = 250\n");
+    fprintf(fp, "tx_return_ms = 750\n");
     fprintf(fp, "mode = LORA\n");
     fprintf(fp, "rx_freq = 433.775\n");
     fprintf(fp, "tx_freq = 433.900\n");
@@ -112,6 +128,8 @@ static void test_load_file(void)
     assert(cfg.rx_only == 1);
     assert(cfg.verbose == 1);
     assert(cfg.stats_interval == 30);
+    assert(cfg.tx_settle_ms == 250);
+    assert(cfg.tx_return_ms == 750);
     assert(strcmp(cfg.mode, "LORA") == 0);
     assert(cfg.have_rx_freq == 1);
     assert(cfg.have_tx_freq == 1);
@@ -137,6 +155,8 @@ static void test_reject_invalid(void)
     char bad3[] = "unknown_key = value";
     char bad4[] = "not_a_key_value_line";
     char bad5[] = "mode = BADMODE";
+    char bad6[] = "mode = LORA FREQ=1";
+    char bad7[] = "tx_return_ms = 60001";
 
     lhkt_config_defaults(&cfg);
 
@@ -145,6 +165,8 @@ static void test_reject_invalid(void)
     assert(lhkt_config_parse_line(&cfg, bad3, 3) == LHKT_ERR_FORMAT);
     assert(lhkt_config_parse_line(&cfg, bad4, 4) == LHKT_ERR_FORMAT);
     assert(lhkt_config_parse_line(&cfg, bad5, 5) == LHKT_ERR_FORMAT);
+    assert(lhkt_config_parse_line(&cfg, bad6, 6) == LHKT_ERR_FORMAT);
+    assert(lhkt_config_parse_line(&cfg, bad7, 7) == LHKT_ERR_FORMAT);
 }
 
 int main(void)
