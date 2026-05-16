@@ -205,6 +205,16 @@ int tnc2_format_line(const ax25_frame_t *frame,
     out[0] = '\0';
     pos = 0;
 
+    if (frame->path_len > LHKT_AX25_MAX_REPEATERS) {
+        return LHKT_ERR_LONG;
+    }
+
+    for (i = 0; i < frame->payload_len; i++) {
+        if (frame->payload[i] == 0) {
+            return LHKT_ERR_FORMAT;
+        }
+    }
+
     ret = ax25_addr_format(&frame->src, addr, sizeof(addr));
     if (ret != LHKT_OK) {
         return ret;

@@ -95,6 +95,41 @@ static void test_format_roundtrip(void)
     assert(memcmp(out.payload, payload, out.payload_len) == 0);
 }
 
+static void test_reject_oversized_format_path(void)
+{
+    ax25_frame_t frame;
+    char line[LHKT_TNC2_MAX_LINE];
+    size_t line_len = 0;
+
+    ax25_frame_init(&frame);
+
+    assert(ax25_addr_parse("APRS", &frame.dst) == LHKT_OK);
+    assert(ax25_addr_parse("DJ0CHE-10", &frame.src) == LHKT_OK);
+
+    frame.path_len = LHKT_AX25_MAX_REPEATERS + 1;
+
+    assert(tnc2_format_line(&frame, line, sizeof(line), &line_len) == LHKT_ERR_LONG);
+}
+
+static void test_reject_nul_payload(void)
+{
+    ax25_frame_t frame;
+    char line[LHKT_TNC2_MAX_LINE];
+    size_t line_len = 0;
+
+    ax25_frame_init(&frame);
+
+    assert(ax25_addr_parse("APRS", &frame.dst) == LHKT_OK);
+    assert(ax25_addr_parse("DJ0CHE-10", &frame.src) == LHKT_OK);
+
+    frame.payload[0] = 'A';
+    frame.payload[1] = 0;
+    frame.payload[2] = 'B';
+    frame.payload_len = 3;
+
+    assert(tnc2_format_line(&frame, line, sizeof(line), &line_len) == LHKT_ERR_FORMAT);
+}
+
 static void test_reject_invalid(void)
 {
     ax25_frame_t frame;
@@ -127,6 +162,8 @@ int main(void)
     test_parse_position();
     test_parse_message_payload_unchanged();
     test_format_roundtrip();
+    test_reject_oversized_format_path();
+    test_reject_nul_payload();
     test_reject_invalid();
 
     puts("test_tnc2: OK");
