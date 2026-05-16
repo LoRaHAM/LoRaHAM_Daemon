@@ -1334,9 +1334,9 @@ int main(int argc, char *argv[]) {
     int cad_counter = 0;
     int cad_band    = 0;   // 0 = nächster CAD-Scan für 433, 1 = für 868
 
-    // --- GETRSSI Tick-Zaehler ---
-    DaemonTick rssi_tick;
-    daemon_tick_init(&rssi_tick, DAEMON_RSSI_TICK_INTERVAL);
+    // --- GETRSSI Timer ---
+    DaemonDeadlineTimer rssi_timer;
+    daemon_deadline_timer_init(&rssi_timer, daemon_now_ms(), DAEMON_RSSI_INTERVAL_MS);
 
 
     printf("[Daemon] Starte Polling-Loop für LoRa und Sockets\n");
@@ -1900,8 +1900,8 @@ int main(int argc, char *argv[]) {
                             radio_channel_getrssi_autostop(&channel_868, &runtime_868, "CONF 868");
                         }
 
-                        // --- RSSI tick ---
-                        if(daemon_tick_state_due(&rssi_tick)) {
+                        // Functional change: RSSI cadence is now time-based.
+                        if(daemon_deadline_timer_due(&rssi_timer, daemon_now_ms())) {
 
                             // 433: nur lesen wenn aktiv und kein TX laeuft
                             if(getrssi_433_active && !txBusy433) {

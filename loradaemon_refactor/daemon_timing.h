@@ -8,6 +8,7 @@
 /* --- Current RSSI stream cadence --- */
 
 #define DAEMON_RSSI_TICK_INTERVAL 10
+#define DAEMON_RSSI_INTERVAL_MS 100
 
 /* --- Counter-based tick helper --- */
 
