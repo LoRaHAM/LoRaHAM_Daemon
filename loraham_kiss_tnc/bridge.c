@@ -297,6 +297,49 @@ static int handle_kiss_data_frame(const kiss_frame_t *kiss_frame,
     return LHKT_OK;
 }
 
+static int handle_kiss_frame(const kiss_frame_t *kiss_frame,
+                             kiss_params_t *kiss_params,
+                             const lhkt_config_t *cfg,
+                             lhkt_stats_t *stats,
+                             int data_fd)
+{
+    int ret;
+
+    if (!kiss_frame || !cfg) {
+        return LHKT_ERR;
+    }
+
+    kiss_handle_command(kiss_params, kiss_frame);
+
+    if (kiss_frame->command == KISS_CMD_DATA) {
+        printf("[KISS] Data frame: port=%u len=%zu\n",
+               kiss_frame->port,
+               kiss_frame->data_len);
+
+        if (kiss_frame->port != 0) {
+            if (stats) {
+                stats->kiss_drop++;
+            }
+
+            printf("[KISS] Drop unsupported port: %u\n",
+                   kiss_frame->port);
+            return LHKT_ERR_UNSUPPORTED;
+        }
+
+        ret = handle_kiss_data_frame(kiss_frame, cfg, stats, data_fd);
+        return ret;
+    }
+
+    if (cfg->verbose) {
+        printf("[KISS] Command: port=%u cmd=%u len=%zu\n",
+               kiss_frame->port,
+               kiss_frame->command,
+               kiss_frame->data_len);
+    }
+
+    return LHKT_OK;
+}
+
 /*
  * RX path:
  * TNC2 from LoRaHAM daemon -> AX.25 UI -> KISS data frame -> TCP client.
@@ -380,6 +423,19 @@ int lhkt_test_send_tnc2_to_kiss_client(int client_fd,
                                        lhkt_stats_t *stats)
 {
     return send_tnc2_to_kiss_client(client_fd, tnc2, stats);
+}
+
+int lhkt_test_handle_kiss_frame(const kiss_frame_t *kiss_frame,
+                                kiss_params_t *kiss_params,
+                                const lhkt_config_t *cfg,
+                                lhkt_stats_t *stats,
+                                int data_fd)
+{
+    return handle_kiss_frame(kiss_frame,
+                             kiss_params,
+                             cfg,
+                             stats,
+                             data_fd);
 }
 #endif
 
@@ -669,30 +725,11 @@ int lhkt_bridge_run(const lhkt_config_t *cfg, lhkt_stats_t *stats)
                         stats->kiss_rx++;
                     }
 
-                    kiss_handle_command(&kiss_params, &kiss_frame);
-
-                    if (kiss_frame.command == KISS_CMD_DATA) {
-                        printf("[KISS] Data frame: port=%u len=%zu\n",
-                               kiss_frame.port,
-                               kiss_frame.data_len);
-
-                        if (kiss_frame.port != 0) {
-                            if (stats) {
-                                stats->kiss_drop++;
-                            }
-
-                            printf("[KISS] Drop unsupported port: %u\n",
-                                   kiss_frame.port);
-                            continue;
-                        }
-
-                        handle_kiss_data_frame(&kiss_frame, cfg, stats, data_fd);
-                    } else if (cfg->verbose) {
-                        printf("[KISS] Command: port=%u cmd=%u len=%zu\n",
-                               kiss_frame.port,
-                               kiss_frame.command,
-                               kiss_frame.data_len);
-                    }
+                    handle_kiss_frame(&kiss_frame,
+                                      &kiss_params,
+                                      cfg,
+                                      stats,
+                                      data_fd);
                 } else if (ret < 0) {
                     if (stats) {
                         stats->kiss_drop++;

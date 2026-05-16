@@ -14,6 +14,12 @@ int lhkt_test_send_tnc2_to_kiss_client(int client_fd,
                                        const char *tnc2,
                                        lhkt_stats_t *stats);
 
+int lhkt_test_handle_kiss_frame(const kiss_frame_t *kiss_frame,
+                                kiss_params_t *kiss_params,
+                                const lhkt_config_t *cfg,
+                                lhkt_stats_t *stats,
+                                int data_fd);
+
 static void test_tnc2_to_kiss_output(void)
 {
     int sv[2];
@@ -70,6 +76,34 @@ static void test_tnc2_to_kiss_output(void)
     close(sv[1]);
 }
 
+
+static void test_nonzero_kiss_port_is_dropped(void)
+{
+    lhkt_config_t cfg;
+    lhkt_stats_t stats;
+    kiss_params_t params;
+    kiss_frame_t frame;
+
+    lhkt_config_defaults(&cfg);
+    lhkt_stats_init(&stats);
+    kiss_params_init(&params);
+    memset(&frame, 0, sizeof(frame));
+
+    frame.port = 1;
+    frame.command = KISS_CMD_DATA;
+    frame.data_len = 0;
+
+    assert(lhkt_test_handle_kiss_frame(&frame,
+                                       &params,
+                                       &cfg,
+                                       &stats,
+                                       -1) == LHKT_ERR_UNSUPPORTED);
+
+    assert(stats.kiss_drop == 1);
+    assert(stats.ax25_rx == 0);
+    assert(stats.loraham_tx == 0);
+}
+
 static void test_invalid_tnc2_is_dropped(void)
 {
     int sv[2];
@@ -92,6 +126,7 @@ int main(void)
     signal(SIGPIPE, SIG_IGN);
 
     test_tnc2_to_kiss_output();
+    test_nonzero_kiss_port_is_dropped();
     test_invalid_tnc2_is_dropped();
 
     puts("test_bridge: OK");
