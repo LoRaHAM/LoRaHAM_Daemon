@@ -3,6 +3,7 @@
 
 #include <stdbool.h>
 #include <sys/select.h>
+#include "event_loop.h"
 
 class Module;
 
@@ -42,6 +43,7 @@ void radio_channel_io_init(RadioChannelIo *ch,
                            int *conf_clients);
 
 void radio_channel_open_sockets(RadioChannelIo *ch);
+void radio_channel_add_fds(RadioChannelIo *ch, EventLoopSelectSet *set);
 void radio_channel_accept_ready(RadioChannelIo *ch, const fd_set *ready);
 
 

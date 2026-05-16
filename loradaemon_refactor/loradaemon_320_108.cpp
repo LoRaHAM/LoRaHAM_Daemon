@@ -1347,15 +1347,8 @@ int main(int argc, char *argv[]) {
     while (1) {
 
         event_loop_select_reset(&event_set);
-        event_loop_select_add_fd(&event_set, data433_fd);
-        event_loop_select_add_fd(&event_set, data868_fd);
-        event_loop_select_add_fd(&event_set, conf433_fd);
-        event_loop_select_add_fd(&event_set, conf868_fd);
-
-        client_set_add_fds(client_data433, MAX_CLIENTS, &event_set.readfds, &event_set.maxfd);
-        client_set_add_fds(client_data868, MAX_CLIENTS, &event_set.readfds, &event_set.maxfd);
-        client_set_add_fds(client_conf433, MAX_CLIENTS, &event_set.readfds, &event_set.maxfd);
-        client_set_add_fds(client_conf868, MAX_CLIENTS, &event_set.readfds, &event_set.maxfd);
+        radio_channel_add_fds(&channel_433, &event_set);
+        radio_channel_add_fds(&channel_868, &event_set);
 
         // --- Select wait ---
         int ret = event_loop_select_wait(&event_set, &readfds, DAEMON_SELECT_TIMEOUT_USEC);
