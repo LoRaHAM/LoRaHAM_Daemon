@@ -1,9 +1,12 @@
 # LoRaHAM KISS TNC sample config
-# Comments start with '#'. CLI options override this file.
+# CLI options override this file.
 
 kiss_host=127.0.0.1
 kiss_port=8001
 
+# Expected socket from running LoRaHAM Daemon
+# /tmp/lora433.sock
+# /tmp/loraconf868.sock
 data_socket=/tmp/lora433.sock
 conf_socket=/tmp/loraconf433.sock
 
@@ -13,26 +16,34 @@ rx_only=0
 
 verbose=0
 
-# Runtime stats. Set to 0 to disable.
-stats_interval=60
+# Runtime stats print interval in seconds. Set to 0 to disable.
+stats_interval=3600
 
 # TX timing in milliseconds.
-# tx_settle_ms: wait after switching to TX frequency before sending.
-# tx_return_ms: wait after TX before switching back to RX frequency.
-tx_settle_ms=100
-tx_return_ms=1000
+tx_settle_ms=100    # wait after switching to TX frequency before sending.
+tx_return_ms=1000   # wait after TX before switching back to RX frequency.
 
+# modes: [ LORA | FSK ]
 mode=LORA
 
-# Default 433 MHz LoRa-APRS frequencies.
+# LoRaHAM APRS 433 MHz
 rx_freq=433.775
 tx_freq=433.900
 
-sf=12
-bw=125.0
-cr=5
-crc=1
-preamble=8
-syncword=0x12
-ldro=1
-power=17
+# # LoRaHAM APRS 868 MHz
+#rx_freq=869.525
+#tx_freq=869.525
+
+# LoRa Parameters
+# SET MODE=LORA FREQ=433.900 SF=12 BW=125 CR=5 CRC=1 PREAMBLE=8 SYNC=0x12 LDRO=1 POWER=17
+# SET MODE=LORA FREQ=869.525 SF=11 BW=250 CR=5 CRC=1 PREAMBLE=16 SYNC=0x12 LDRO=1 POWER=10
+
+sf=12               # spreading factor
+bw=125.0            # bandwidth
+cr=5                # coding rate
+crc=1               # CRC (on/off)
+preamble=8          # preamble length
+syncword=0x12       # 0x12  private 0x34  public
+ldro=AUTO           # low data rate optimization (0/1/AUTO))
+power=17            # TX power in dBm
+
