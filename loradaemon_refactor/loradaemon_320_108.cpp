@@ -146,6 +146,7 @@
 
 #include "unix_socket.h"
 #include "client_set.h"
+#include "config_parser.h"
 
 #define buf_SIZE 256
 #define MAX_CLIENTS 10
@@ -1083,58 +1084,36 @@ template<typename RadioT>
 void parse_and_apply_config_generic(RadioT &radio, const char *tag, const char *cmd,
                                     volatile RadioMode_t &mode_flag,
                                     volatile bool &getrssi_flag) {
-    std::string s(cmd);
-    while(!s.empty() && (s.back() == '\n' || s.back() == '\r')) s.pop_back();
+    ConfigCommand parsed = config_parse_command(cmd);
 
-    if(s.rfind("SET", 0) != 0) {
-        printf("[%s] Unbekannter Befehl: %s\n", tag, s.c_str());
+    if(!parsed.is_set) {
+        printf("[%s] Unbekannter Befehl: %s\n", tag, parsed.text.c_str());
         return;
     }
 
-    size_t pos = s.find(' ');
-    if(pos == std::string::npos) return;
-    std::string rest = s.substr(pos + 1);
+    if(!parsed.has_params)
+        return;
 
-    // --- 1. Pass: Alle Tokens sammeln und MODE= zuerst verarbeiten ---
-    // MODE= muss vor allen anderen Keys verarbeitet werden, damit beginFSK()/begin()
-    // aufgerufen wurde bevor z.B. BR= oder SF= gesetzt werden.
+    // --- 1. Pass: MODE= zuerst, GETRSSI= direkt, Rest sammeln ---
     std::vector<std::pair<std::string,std::string>> tokens;
-    std::string mode_val = "";
+    std::string mode_val = parsed.mode;
 
-    size_t start = 0;
-    while(start < rest.size()) {
-        size_t end = rest.find(' ', start);
-        if(end == std::string::npos) end = rest.size();
-        std::string token = rest.substr(start, end - start);
-        if(!token.empty()) {
-            size_t eq = token.find('=');
-            if(eq != std::string::npos && eq > 0 && eq + 1 < token.size()) {
-                std::string key = token.substr(0, eq);
-                std::string val = token.substr(eq + 1);
-                for(char &c : key) c = toupper((unsigned char)c);
-                if(key == "MODE") {
-                    // MODE= direkt merken, nicht in die Token-Liste
-                    for(char &c : val) c = toupper((unsigned char)c);
-                    mode_val = val;
-                } else if(key == "GETRSSI") {
-                    // GETRSSI=1/0: Flag direkt setzen, nicht in Token-Liste
-                    // Aktiviert/deaktiviert kontinuierlichen RSSI-Stream (10 Hz)
-                    // an alle Conf-Clients dieses Bandes. Format: "RSSI=-87.50\n"
-                    int v = atoi(val.c_str());
-                    if(v == 0 || v == 1) {
-                        getrssi_flag = (v != 0);
-                        if(v == 1) printf(" GETRSSI=\033[92m1\033[0m");
-                        else       printf(" GETRSSI=\033[92m0\033[0m");
-                    } else {
-                        // Ungueltiger Wert (alles ausser 0 oder 1)
-                        printf(" GETRSSI=\033[91;5m%d\033[0m", v);
-                    }
-                } else {
-                    tokens.push_back({key, val});
-                }
+    for(auto &kv : parsed.tokens) {
+        const std::string &key = kv.first;
+        const std::string &val = kv.second;
+
+        if(key == "GETRSSI") {
+            int v = atoi(val.c_str());
+            if(v == 0 || v == 1) {
+                getrssi_flag = (v != 0);
+                if(v == 1) printf(" GETRSSI=[92m1[0m");
+                else       printf(" GETRSSI=[92m0[0m");
+            } else {
+                printf(" GETRSSI=[91;5m%d[0m", v);
             }
+        } else {
+            tokens.push_back(kv);
         }
-        start = end + 1;
     }
 
     // --- MODE= auswerten und Radio ggf. neu initialisieren ---
