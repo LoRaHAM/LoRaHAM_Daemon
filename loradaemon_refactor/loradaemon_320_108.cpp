@@ -1245,73 +1245,114 @@ void lora_init() {
     fflush(stdout);
 }
 
-/* --- Data client TX handling --- */
+// --- Unix socket setup moved to unix_socket.cpp ---
 
-static void process_data433_clients(const fd_set *readfds)
-{
-                        // --- DATA433-Clients bearbeiten ---
-                        for(int i=0;i<MAX_CLIENTS;i++){
-                            if(client_set_slot_ready(client_data433, i, readfds)) {
-                                uint8_t large_buf[2048]; // Großer Puffer für den Socket-Eingang
-                                ssize_t n = client_set_read_slot(client_data433, i, large_buf, sizeof(large_buf));
+int main(int argc, char *argv[]) {
+    int opt;
+    bool is_daemon = false;
+    // SIGPIPE ignorieren: write() auf geschlossenen Socket crasht sonst den Daemon
+    signal(SIGPIPE, SIG_IGN);
 
-                                if(n > 0) {
-                                    printf("[DEBUG 433] %zd Bytes vom Socket erhalten. Zerteile in LoRa-Pakete...\n", n);
+    // Parsen der Argumente
+    while ((opt = getopt(argc, argv, "d")) != -1) {
+        switch (opt) {
+            case 'd':
+                is_daemon = true;
+                break;
+            default:
+                fprintf(stderr, "Nutzung: %s [-d]\n", argv[0]);
+                exit(EXIT_FAILURE);
+        }
+    }
 
-                                    ssize_t bytes_sent = 0;
-                                    while(bytes_sent < n) {
-                                        // Berechne Größe des nächsten Fragments (max 255)
-                                        ssize_t chunk_size = n - bytes_sent;
-                                        if(chunk_size > 255) chunk_size = 255;
+    // --- Userspace-Daemon Implementation ---
+    if (is_daemon) {
+        pid_t pid = fork();
+        if (pid < 0) exit(EXIT_FAILURE);
+        if (pid > 0) exit(EXIT_SUCCESS); // Elternprozess beenden
 
-                                        // --- CAD-Guard: Kanal frei? ---
-                                        // Nur im LoRa-Modus: getModemStatus() ist FSK-inkompatibel
-                                        // Im FSK-Modus: sofort senden (kein CSMA)
-                                        if (mode_433 == RADIO_MODE_LORA) {
-                                            // Warten bis Modem nicht mehr aktiv (max. 3 Sekunden für SF12)
-                                            int cad_wait = 0;
-                                            while (((radio_433->getModemStatus() & 0x01)) && cad_wait < 300) {
-                                                // Bit0=Signal, Bit4=Header: Kanal noch belegt
-                                                usleep(10000); // 10ms warten
-                                                cad_wait++;
-                                            }
-                                            if (cad_wait >= 300) {
-                                                printf("[433] CAD-Timeout: Kanal dauerhaft belegt, Paket verworfen\n");
-                                                break;
-                                            }
-                                        } // end CAD-Guard LoRa
+        if (setsid() < 0) exit(EXIT_FAILURE); // Neue Session
 
-                                        printf("  -> Sende Chunk: %zd Bytes (Offset: %zd)\n", chunk_size, bytes_sent);
+        pid = fork();
+        if (pid < 0) exit(EXIT_FAILURE);
+        if (pid > 0) exit(EXIT_SUCCESS);
 
-                                        LED_433(1);
-                                        // Sende den Teilbereich des Puffers
-                                        lora_send(large_buf + bytes_sent, chunk_size, 433);
-                                        LED_433(0);
+        umask(0);
+        chdir("/");
 
-                                        bytes_sent += chunk_size;
+        // FIX: Deskriptoren nicht einfach schließen, sondern umleiten
+        // Das verhindert, dass neue Sockets die IDs 0, 1 oder 2 einnehmen.
+        freopen("/dev/null", "r", stdin);
+        freopen("/tmp/lora_daemon.log", "w", stdout); // Optional: In Datei loggen
+        freopen("/tmp/lora_daemon.log", "w", stderr);
+    }
 
-                                        // Optional: Kleines Delay zwischen Paketen, damit der Empfänger Zeit hat
-                                        // usleep(50000); // 50ms Pause
-                                    }
-                                }
-                            }
+    radio_channel_io_init(&channel_433,
+                          RADIO_BAND_433,
+                          DATA433_SOCKET,
+                          CONF433_SOCKET,
+                          &data433_fd,
+                          &conf433_fd,
+                          client_data433,
+                          client_conf433);
+    radio_channel_io_init(&channel_868,
+                          RADIO_BAND_868,
+                          DATA868_SOCKET,
+                          CONF868_SOCKET,
+                          &data868_fd,
+                          &conf868_fd,
+                          client_data868,
+                          client_conf868);
 
-                            /*
-                             *                if(client_data433[i] > 0 && FD_ISSET(client_data433[i], readfds)) {
-                             *                        // Roh-Daten direkt in den tx_buf lesen (maximal bis zum LoRa-Limit von 255)
-                             *                        ssize_t n = read(client_data433[i], tx_buf, 255);
-                             *
-                             *                        if(n <= 0) {
-                             *                            // Client hat Verbindung geschlossen oder Fehler
-                             *                            close(client_data433[i]);
-                             *                            client_data433[i] = 0;
-                        }
-                        else {
-                                                   // --- DATA Clients bearbeiten ---
-                        process_data433_clients(&readfds);
-                        process_data868_clients(&readfds);
+    radio_channel_open_sockets(&channel_433);
+    radio_channel_open_sockets(&channel_868);
 
-nue;}
+    radio_channel_runtime_init(&runtime_433,
+                               &mode_433,
+                               &receivedFlag433,
+                               &txBusy433,
+                               &cad433_active,
+                               &getrssi_433_active);
+    radio_channel_runtime_init(&runtime_868,
+                               &mode_868,
+                               &receivedFlag868,
+                               &txBusy868,
+                               &cad868_active,
+                               &getrssi_868_active);
+
+    LED_init();
+    lora_init();
+
+    EventLoopSelectSet event_set;
+    fd_set readfds;
+    uint8_t buf[buf_SIZE];
+    uint8_t tx_buf[buf_SIZE];  // ← NEU: nur zum Senden
+    uint8_t rx_buf_433[buf_SIZE];  // ← GETRENNTE Buffer pro Band!
+    uint8_t rx_buf_868[buf_SIZE];  // ← GETRENNTE Buffer pro Band!
+    uint8_t len_buf;           // ← NEU!
+
+    uint8_t len;
+    // --- CAD-Polling-Steuerung: alterniert zwischen 433 und 868 ---
+    int cad_counter = 0;
+    int cad_band    = 0;   // 0 = nächster CAD-Scan für 433, 1 = für 868
+
+    // --- GETRSSI Timer ---
+    DaemonDeadlineTimer rssi_timer;
+    daemon_deadline_timer_init(&rssi_timer, daemon_now_ms(), DAEMON_RSSI_INTERVAL_MS);
+
+
+    printf("[Daemon] Starte Polling-Loop für LoRa und Sockets\n");
+
+
+    while (1) {
+
+        event_loop_select_reset(&event_set);
+        radio_channel_add_fds(&channel_433, &event_set);
+        radio_channel_add_fds(&channel_868, &event_set);
+
+        // --- Select wait ---
+        int ret = event_loop_select_wait(&event_set, &readfds, DAEMON_SELECT_TIMEOUT_USEC);
+        if(ret<0){perror("select"); continue;}
 
         // --- Neue Clients ---
         radio_channel_accept_ready(&channel_433, &readfds);
