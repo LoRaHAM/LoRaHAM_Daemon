@@ -194,7 +194,26 @@ build_one_timing_test() {
   echo "Built test:   $out"
 }
 
+build_one_event_loop_test() {
+  local src="$1"
+  local out="$2"
+
+  "$cxx" \
+    -std=c++11 \
+    -Wall \
+    -Wextra \
+    -O2 \
+    -I"$TEST_DIR" \
+    -I"$SCRIPT_DIR" \
+    -o "$out" \
+    "$src" \
+    "$SCRIPT_DIR/event_loop.cpp"
+
+  echo "Built test:   $out"
+}
+
 build_tests() {
+  build_one_event_loop_test "$TEST_DIR/test_event_loop.cpp" "$TEST_DIR/test_event_loop"
   build_one_timing_test "$TEST_DIR/test_daemon_timing.cpp" "$TEST_DIR/test_daemon_timing"
   build_one_test "$TEST_DIR/test_rssi_multiclient.c" "$TEST_DIR/test_rssi_multiclient"
   build_one_cpp_test "$TEST_DIR/test_config_parser.cpp" "$TEST_DIR/test_config_parser"
