@@ -11,6 +11,14 @@
 
 /* --- Counter-based tick helper --- */
 
+typedef struct {
+    int counter;
+    int interval;
+} DaemonTick;
+
+void daemon_tick_init(DaemonTick *tick, int interval);
+int daemon_tick_state_due(DaemonTick *tick);
+
 int daemon_tick_due(int *counter, int interval);
 
 #endif

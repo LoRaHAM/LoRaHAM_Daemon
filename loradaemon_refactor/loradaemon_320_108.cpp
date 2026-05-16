@@ -1335,7 +1335,8 @@ int main(int argc, char *argv[]) {
     int cad_band    = 0;   // 0 = nächster CAD-Scan für 433, 1 = für 868
 
     // --- GETRSSI Tick-Zaehler ---
-    int rssi_tick_counter = 0;
+    DaemonTick rssi_tick;
+    daemon_tick_init(&rssi_tick, DAEMON_RSSI_TICK_INTERVAL);
 
 
     printf("[Daemon] Starte Polling-Loop für LoRa und Sockets\n");
@@ -1900,7 +1901,7 @@ int main(int argc, char *argv[]) {
                         }
 
                         // --- RSSI tick ---
-                        if(daemon_tick_due(&rssi_tick_counter, DAEMON_RSSI_TICK_INTERVAL)) {
+                        if(daemon_tick_state_due(&rssi_tick)) {
 
                             // 433: nur lesen wenn aktiv und kein TX laeuft
                             if(getrssi_433_active && !txBusy433) {
