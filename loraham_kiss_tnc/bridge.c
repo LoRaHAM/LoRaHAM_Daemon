@@ -7,6 +7,7 @@
 #include "tnc2.h"
 
 #include <errno.h>
+#include <fcntl.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
@@ -47,6 +48,26 @@ static int write_all_fd(int fd, const uint8_t *buf, size_t len)
         }
 
         done += (size_t)n;
+    }
+
+    return LHKT_OK;
+}
+
+static int set_fd_nonblocking(int fd)
+{
+    int flags;
+
+    if (fd < 0) {
+        return LHKT_ERR;
+    }
+
+    flags = fcntl(fd, F_GETFL, 0);
+    if (flags < 0) {
+        return LHKT_ERR;
+    }
+
+    if (fcntl(fd, F_SETFL, flags | O_NONBLOCK) < 0) {
+        return LHKT_ERR;
     }
 
     return LHKT_OK;
@@ -504,6 +525,13 @@ int lhkt_bridge_run(const lhkt_config_t *cfg, lhkt_stats_t *stats)
                 continue;
             }
 
+            if (set_fd_nonblocking(client_fd) != LHKT_OK) {
+                fprintf(stderr, "[ERR] KISS/TCP non-blocking setup failed\n");
+                lhkt_tcp_server_close(client_fd);
+                client_fd = -1;
+                continue;
+            }
+
             kiss_decoder_init(&kiss_dec);
             kiss_params_init(&kiss_params);
             loraham_rx_state_init(&lora_rx);
@@ -514,7 +542,9 @@ int lhkt_bridge_run(const lhkt_config_t *cfg, lhkt_stats_t *stats)
         if (client_fd >= 0 && FD_ISSET(client_fd, &rfds)) {
             n = read(client_fd, buf, sizeof(buf));
             if (n < 0) {
-                if (errno == EINTR) {
+                if (errno == EINTR ||
+                    errno == EAGAIN ||
+                    errno == EWOULDBLOCK) {
                     continue;
                 }
 
