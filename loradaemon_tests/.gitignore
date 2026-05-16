@@ -1,0 +1,21 @@
+# Built test binaries
+/test_loradaemon_interface
+/test_loradaemon_320_108_interface
+
+# Optional local daemon binaries built inside this test directory
+/loraham_daemon
+/loradaemon_320_108
+
+# Object files and local build leftovers
+*.o
+*.a
+*.so
+*.d
+*.log
+core
+core.*
+
+# Local editor/temp files
+*~
+*.swp
+*.swo
