@@ -23,13 +23,50 @@
 
 #define LHKT_RX_IDLE_FLUSH_USEC 50000
 #define LHKT_RECONNECT_DELAY_SEC 1
+#define LHKT_CLIENT_WRITE_TIMEOUT_SEC 2
+
+
+static int wait_fd_writable(int fd)
+{
+    fd_set wfds;
+    struct timeval tv;
+    int ret;
+
+    if (fd < 0 || fd >= FD_SETSIZE) {
+        return LHKT_ERR;
+    }
+
+    for (;;) {
+        FD_ZERO(&wfds);
+        FD_SET(fd, &wfds);
+
+        tv.tv_sec = LHKT_CLIENT_WRITE_TIMEOUT_SEC;
+        tv.tv_usec = 0;
+
+        ret = select(fd + 1, NULL, &wfds, NULL, &tv);
+        if (ret < 0) {
+            if (errno == EINTR) {
+                continue;
+            }
+
+            return LHKT_ERR;
+        }
+
+        if (ret == 0) {
+            errno = ETIMEDOUT;
+            return LHKT_ERR;
+        }
+
+        return LHKT_OK;
+    }
+}
 
 static int write_all_fd(int fd, const uint8_t *buf, size_t len)
 {
     size_t done;
     ssize_t n;
 
-    if (fd < 0 || !buf) {
+    if (fd < 0 || fd >= FD_SETSIZE || (!buf && len > 0)) {
         return LHKT_ERR;
     }
 
@@ -39,6 +76,14 @@ static int write_all_fd(int fd, const uint8_t *buf, size_t len)
         n = write(fd, buf + done, len - done);
         if (n < 0) {
             if (errno == EINTR) {
+                continue;
+            }
+
+            if (errno == EAGAIN || errno == EWOULDBLOCK) {
+                if (wait_fd_writable(fd) != LHKT_OK) {
+                    return LHKT_ERR;
+                }
+
                 continue;
             }
 
