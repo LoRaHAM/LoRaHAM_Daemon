@@ -1379,16 +1379,10 @@ int main(int argc, char *argv[]) {
         if (conf868_fd > maxfd) maxfd = conf868_fd;
         maxfd += 1;
 
-        for(int i=0;i<MAX_CLIENTS;i++){
-            if(client_data433[i]>0) FD_SET(client_data433[i],&readfds);
-            if(client_data868[i]>0) FD_SET(client_data868[i],&readfds);
-            if(client_conf433[i]>0) FD_SET(client_conf433[i],&readfds);
-            if(client_conf868[i]>0) FD_SET(client_conf868[i],&readfds);
-            if(client_data433[i]>=maxfd) maxfd=client_data433[i]+1;
-            if(client_data868[i]>=maxfd) maxfd=client_data868[i]+1;
-            if(client_conf433[i]>=maxfd) maxfd=client_conf433[i]+1;
-            if(client_conf868[i]>=maxfd) maxfd=client_conf868[i]+1;
-        }
+        client_set_add_fds(client_data433, MAX_CLIENTS, &readfds, &maxfd);
+        client_set_add_fds(client_data868, MAX_CLIENTS, &readfds, &maxfd);
+        client_set_add_fds(client_conf433, MAX_CLIENTS, &readfds, &maxfd);
+        client_set_add_fds(client_conf868, MAX_CLIENTS, &readfds, &maxfd);
 
         // Timeout für select: 10ms -> Loop bleibt schnell
         struct timeval tv = {0, 10000}; // 10ms
@@ -1398,18 +1392,18 @@ int main(int argc, char *argv[]) {
         // --- Neue DATA Clients ---
         if(FD_ISSET(data433_fd,&readfds)){
             int new_fd=accept(data433_fd,NULL,NULL);
-            if(new_fd>=0){for(int i=0;i<MAX_CLIENTS;i++){if(client_data433[i]==0){client_data433[i]=new_fd;break;}}} /*printf("Neuer DATA433-Client verbunden.\n");*/ }
+            if(new_fd>=0){client_set_add(client_data433, MAX_CLIENTS, new_fd);} /*printf("Neuer DATA433-Client verbunden.\n");*/ }
             if(FD_ISSET(data868_fd,&readfds)){
                 int new_fd=accept(data868_fd,NULL,NULL);
-                if(new_fd>=0){for(int i=0;i<MAX_CLIENTS;i++){if(client_data868[i]==0){client_data868[i]=new_fd;break;}}} /*printf("Neuer DATA868-Client verbunden.\n");*/ }
+                if(new_fd>=0){client_set_add(client_data868, MAX_CLIENTS, new_fd);} /*printf("Neuer DATA868-Client verbunden.\n");*/ }
 
                 // --- Neue CONFIG Clients ---
                 if(FD_ISSET(conf433_fd,&readfds)){
                     int new_fd=accept(conf433_fd,NULL,NULL);
-                    if(new_fd>=0){for(int i=0;i<MAX_CLIENTS;i++){if(client_conf433[i]==0){client_conf433[i]=new_fd;break;}}} /*printf("Neuer CONF433-Client verbunden.\n");*/ }
+                    if(new_fd>=0){client_set_add(client_conf433, MAX_CLIENTS, new_fd);} /*printf("Neuer CONF433-Client verbunden.\n");*/ }
                     if(FD_ISSET(conf868_fd,&readfds)){
                         int new_fd=accept(conf868_fd,NULL,NULL);
-                        if(new_fd>=0){for(int i=0;i<MAX_CLIENTS;i++){if(client_conf868[i]==0){client_conf868[i]=new_fd;break;}}} /*printf("Neuer CONF868-Client verbunden.\n");*/ }
+                        if(new_fd>=0){client_set_add(client_conf868, MAX_CLIENTS, new_fd);} /*printf("Neuer CONF868-Client verbunden.\n");*/ }
 
 
                         // --- DATA433-Clients bearbeiten ---
@@ -1419,8 +1413,7 @@ int main(int argc, char *argv[]) {
                                 ssize_t n = read(client_data433[i], large_buf, sizeof(large_buf));
 
                                 if(n <= 0) {
-                                    close(client_data433[i]);
-                                    client_data433[i] = 0;
+                                    client_set_close_slot(client_data433, i);
                                 } else {
                                     printf("[DEBUG 433] %zd Bytes vom Socket erhalten. Zerteile in LoRa-Pakete...\n", n);
 
@@ -1509,8 +1502,7 @@ int main(int argc, char *argv[]) {
                                 ssize_t n = read(client_data868[i], large_buf, sizeof(large_buf));
 
                                 if(n <= 0) {
-                                    close(client_data868[i]);
-                                    client_data868[i] = 0;
+                                    client_set_close_slot(client_data868, i);
                                 } else {
                                     printf("[DEBUG 868] %zd Bytes vom Socket erhalten. Zerteile in LoRa-Pakete...\n", n);
 
@@ -1597,8 +1589,7 @@ int main(int argc, char *argv[]) {
                             if(client_conf433[i]>0 && FD_ISSET(client_conf433[i],&readfds)){
                                 ssize_t n = read(client_conf433[i],buf,buf_SIZE-1);
                                 if(n<=0){
-                                    close(client_conf433[i]);
-                                    client_conf433[i]=0;
+                                    client_set_close_slot(client_conf433, i);
                                 } else {
                                     buf[n]='\0';
                                     printf("[CONF433]");
@@ -1621,8 +1612,7 @@ int main(int argc, char *argv[]) {
                             if(client_conf868[i]>0 && FD_ISSET(client_conf868[i],&readfds)){
                                 ssize_t n = read(client_conf868[i],buf,buf_SIZE-1);
                                 if(n<=0){
-                                    close(client_conf868[i]);
-                                    client_conf868[i]=0;
+                                    client_set_close_slot(client_conf868, i);
                                 } else {
                                     buf[n]='\0';
                                     parse_and_apply_config_generic<RFM95>(*radio_868, "CONF 868", (char*)buf, mode_868, getrssi_868_active);
