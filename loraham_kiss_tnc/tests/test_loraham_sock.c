@@ -5,6 +5,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <sys/socket.h>
+#include <sys/select.h>
 #include <unistd.h>
 
 static void test_sock_write_socketpair(void)
@@ -29,6 +30,44 @@ static void test_sock_write_socketpair(void)
 
     close(sv[0]);
     close(sv[1]);
+}
+
+static void test_extract_split_then_idle_flush(void)
+{
+    loraham_rx_state_t state;
+    char out[LHKT_TNC2_MAX_LINE];
+    size_t out_len = 0;
+
+    const uint8_t part1[] = {
+        LORAHAM_APRS_HDR0, LORAHAM_APRS_HDR1, LORAHAM_APRS_HDR2,
+        'A','>','B'
+    };
+
+    const uint8_t part2[] = {
+        ':','C'
+    };
+
+    loraham_rx_state_init(&state);
+
+    assert(loraham_extract_tnc2(&state, part1, sizeof(part1), out, sizeof(out), &out_len) == 0);
+    assert(out_len == 0);
+
+    assert(loraham_extract_tnc2(&state, part2, sizeof(part2), out, sizeof(out), &out_len) == 0);
+    assert(out_len == 0);
+
+    assert(loraham_extract_tnc2(&state, NULL, 0, out, sizeof(out), &out_len) == 1);
+    assert(strcmp(out, "A>B:C") == 0);
+
+    assert(loraham_extract_tnc2(&state, NULL, 0, out, sizeof(out), &out_len) == 0);
+}
+
+static void test_sock_write_rejects_invalid_args(void)
+{
+    const uint8_t msg[] = { 'X' };
+
+    assert(loraham_sock_write(-1, msg, sizeof(msg)) == -1);
+    assert(loraham_sock_write(FD_SETSIZE, msg, sizeof(msg)) == -1);
+    assert(loraham_sock_write(0, NULL, sizeof(msg)) == -1);
 }
 
 static void test_build_packet(void)
@@ -284,7 +323,9 @@ static void test_ignore_noise_without_header(void)
 int main(void)
 {
     test_sock_write_socketpair();
+    test_sock_write_rejects_invalid_args();
     test_build_packet();
+    test_extract_split_then_idle_flush();
     test_build_packet_limit();
     test_extract_with_newline();
     test_extract_split_header();
