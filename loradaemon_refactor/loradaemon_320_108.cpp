@@ -1363,11 +1363,9 @@ int main(int argc, char *argv[]) {
                         for(int i=0;i<MAX_CLIENTS;i++){
                             if(client_set_slot_ready(client_data433, i, &readfds)) {
                                 uint8_t large_buf[2048]; // Großer Puffer für den Socket-Eingang
-                                ssize_t n = read(client_data433[i], large_buf, sizeof(large_buf));
+                                ssize_t n = client_set_read_slot(client_data433, i, large_buf, sizeof(large_buf));
 
-                                if(n <= 0) {
-                                    client_set_close_slot(client_data433, i);
-                                } else {
+                                if(n > 0) {
                                     printf("[DEBUG 433] %zd Bytes vom Socket erhalten. Zerteile in LoRa-Pakete...\n", n);
 
                                     ssize_t bytes_sent = 0;
@@ -1452,11 +1450,9 @@ int main(int argc, char *argv[]) {
 
                             if(client_set_slot_ready(client_data868, i, &readfds)) {
                                 uint8_t large_buf[2048]; // Großer Puffer für den Socket-Eingang
-                                ssize_t n = read(client_data868[i], large_buf, sizeof(large_buf));
+                                ssize_t n = client_set_read_slot(client_data868, i, large_buf, sizeof(large_buf));
 
-                                if(n <= 0) {
-                                    client_set_close_slot(client_data868, i);
-                                } else {
+                                if(n > 0) {
                                     printf("[DEBUG 868] %zd Bytes vom Socket erhalten. Zerteile in LoRa-Pakete...\n", n);
 
                                     ssize_t bytes_sent = 0;
@@ -1540,10 +1536,8 @@ int main(int argc, char *argv[]) {
                         // parse_config kann hier eingefügt werden
                         for(int i=0;i<MAX_CLIENTS;i++){
                             if(client_set_slot_ready(client_conf433, i, &readfds)){
-                                ssize_t n = read(client_conf433[i],buf,buf_SIZE-1);
-                                if(n<=0){
-                                    client_set_close_slot(client_conf433, i);
-                                } else {
+                                ssize_t n = client_set_read_slot(client_conf433, i, buf, buf_SIZE-1);
+                                if(n > 0) {
                                     buf[n]='\0';
                                     printf("[CONF433]");
                                     parse_and_apply_config_generic<SX1278>(*radio_433, "CONF 433", (char*)buf, mode_433, getrssi_433_active);
@@ -1563,10 +1557,8 @@ int main(int argc, char *argv[]) {
                                 }
                             }
                             if(client_set_slot_ready(client_conf868, i, &readfds)){
-                                ssize_t n = read(client_conf868[i],buf,buf_SIZE-1);
-                                if(n<=0){
-                                    client_set_close_slot(client_conf868, i);
-                                } else {
+                                ssize_t n = client_set_read_slot(client_conf868, i, buf, buf_SIZE-1);
+                                if(n > 0) {
                                     buf[n]='\0';
                                     parse_and_apply_config_generic<RFM95>(*radio_868, "CONF 868", (char*)buf, mode_868, getrssi_868_active);
                                     // Callback nach jedem Konfig-Wechsel neu setzen:

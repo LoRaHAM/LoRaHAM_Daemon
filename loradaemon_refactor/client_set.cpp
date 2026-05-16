@@ -52,6 +52,17 @@ int client_set_has_clients(int *clients, int max_clients)
 }
 
 
+
+ssize_t client_set_read_slot(int *clients, int index, void *buf, size_t len)
+{
+    ssize_t n = read(clients[index], buf, len);
+
+    if (n <= 0)
+        client_set_close_slot(clients, index);
+
+    return n;
+}
+
 int client_set_slot_ready(int *clients, int index, const fd_set *ready)
 {
     return clients[index] > 0 && event_loop_select_ready_fd(ready, clients[index]);
