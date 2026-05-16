@@ -21,6 +21,7 @@
  */
 
 #define LHKT_RX_IDLE_FLUSH_USEC 50000
+#define LHKT_RECONNECT_DELAY_SEC 1
 
 static int write_all_fd(int fd, const uint8_t *buf, size_t len)
 {
@@ -115,6 +116,23 @@ static int send_loraham_config_freq(const lhkt_config_t *cfg, double freq)
 
     printf("[LoRaHAM] Config sent: freq=%.6f\n", freq);
     return LHKT_OK;
+}
+
+static int connect_loraham_data_socket(const lhkt_config_t *cfg)
+{
+    int fd;
+
+    if (!cfg) {
+        return LHKT_ERR;
+    }
+
+    fd = loraham_sock_connect(cfg->data_socket);
+    if (fd < 0) {
+        return LHKT_ERR;
+    }
+
+    printf("[LoRaHAM] Data socket connected: %s\n", cfg->data_socket);
+    return fd;
 }
 
 /*
@@ -436,15 +454,12 @@ int lhkt_bridge_run(const lhkt_config_t *cfg, lhkt_stats_t *stats)
         printf("[LoRaHAM] Config socket not connected: %s\n", cfg->conf_socket);
     }
 
-    data_fd = loraham_sock_connect(cfg->data_socket);
+    data_fd = connect_loraham_data_socket(cfg);
     if (data_fd < 0) {
         fprintf(stderr,
-                "[ERR] LoRaHAM data socket connect failed: %s\n",
+                "[WARN] LoRaHAM data socket not connected yet: %s\n",
                 cfg->data_socket);
-        return 1;
     }
-
-    printf("[LoRaHAM] Data socket connected: %s\n", cfg->data_socket);
 
     if (cfg->rx_only) {
         printf("[LoRaHAM] RX-only mode: TX disabled\n");
@@ -464,8 +479,12 @@ int lhkt_bridge_run(const lhkt_config_t *cfg, lhkt_stats_t *stats)
 
     for (;;) {
         FD_ZERO(&rfds);
-        FD_SET(data_fd, &rfds);
-        max_fd = data_fd;
+        max_fd = -1;
+
+        if (data_fd >= 0) {
+            FD_SET(data_fd, &rfds);
+            max_fd = data_fd;
+        }
 
         if (client_fd >= 0) {
             FD_SET(client_fd, &rfds);
@@ -480,7 +499,11 @@ int lhkt_bridge_run(const lhkt_config_t *cfg, lhkt_stats_t *stats)
         }
 
         timeout = NULL;
-        if (client_fd >= 0 && lora_rx.seen_header && lora_rx.len > 0) {
+        if (data_fd < 0) {
+            tv.tv_sec = LHKT_RECONNECT_DELAY_SEC;
+            tv.tv_usec = 0;
+            timeout = &tv;
+        } else if (client_fd >= 0 && lora_rx.seen_header && lora_rx.len > 0) {
             tv.tv_sec = 0;
             tv.tv_usec = LHKT_RX_IDLE_FLUSH_USEC;
             timeout = &tv;
@@ -497,6 +520,14 @@ int lhkt_bridge_run(const lhkt_config_t *cfg, lhkt_stats_t *stats)
         }
 
         if (ret == 0) {
+            if (data_fd < 0) {
+                data_fd = connect_loraham_data_socket(cfg);
+                if (data_fd >= 0 && stats) {
+                    stats->socket_reconnects++;
+                }
+                continue;
+            }
+
             ret = handle_loraham_rx_chunk(client_fd,
                                           &lora_rx,
                                           NULL,
@@ -621,7 +652,7 @@ int lhkt_bridge_run(const lhkt_config_t *cfg, lhkt_stats_t *stats)
             }
         }
 
-        if (FD_ISSET(data_fd, &rfds)) {
+        if (data_fd >= 0 && FD_ISSET(data_fd, &rfds)) {
             n = loraham_sock_read(data_fd, buf, sizeof(buf));
             if (n < 0) {
                 if (errno == EINTR) {
@@ -629,15 +660,24 @@ int lhkt_bridge_run(const lhkt_config_t *cfg, lhkt_stats_t *stats)
                 }
 
                 fprintf(stderr, "[ERR] LoRaHAM data socket read failed\n");
-                break;
+                lhkt_tcp_server_close(data_fd);
+                data_fd = -1;
+                loraham_rx_state_init(&lora_rx);
+                if (stats) {
+                    stats->socket_reconnects++;
+                }
+                continue;
             }
 
             if (n == 0) {
                 fprintf(stderr, "[ERR] LoRaHAM data socket closed\n");
+                lhkt_tcp_server_close(data_fd);
+                data_fd = -1;
+                loraham_rx_state_init(&lora_rx);
                 if (stats) {
                     stats->socket_reconnects++;
                 }
-                break;
+                continue;
             }
 
             if (cfg->verbose) {
