@@ -42,6 +42,8 @@ typedef struct {
     int rx_only;
     int verbose;
     int stats_interval;
+    int tx_settle_ms;
+    int tx_return_ms;
 
     char mode[16];
 

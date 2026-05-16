@@ -51,6 +51,10 @@ int loraham_extract_tnc2(loraham_rx_state_t *state,
 int loraham_send_config(int conf_fd,
                         const lhkt_config_t *cfg);
 
+int loraham_send_config_freq(int conf_fd,
+                             const lhkt_config_t *cfg,
+                             double freq);
+
 #ifdef __cplusplus
 }
 #endif

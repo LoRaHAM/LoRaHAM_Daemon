@@ -375,29 +375,19 @@ int loraham_extract_tnc2(loraham_rx_state_t *state,
     return 0;
 }
 
-/*
- * Send a minimal LoRa config command.
- * Only explicitly configured frequencies are emitted.
- */
-int loraham_send_config(int conf_fd,
-                        const lhkt_config_t *cfg)
+static int loraham_send_config_line(int conf_fd,
+                                    const lhkt_config_t *cfg,
+                                    double freq,
+                                    int have_freq)
 {
     char line[256];
     int ret;
-    double freq;
 
     if (conf_fd < 0 || !cfg) {
         return LHKT_ERR;
     }
 
-    freq = 0.0;
-    if (cfg->have_rx_freq) {
-        freq = cfg->rx_freq;
-    } else if (cfg->have_tx_freq) {
-        freq = cfg->tx_freq;
-    }
-
-    if (freq > 0.0) {
+    if (have_freq) {
         ret = snprintf(line,
                        sizeof(line),
                        "SET MODE=%s FREQ=%.6f SF=%d BW=%.3f CR=%d CRC=%d PREAMBLE=%d SYNC=0x%02X LDRO=%d POWER=%d\n",
@@ -435,4 +425,33 @@ int loraham_send_config(int conf_fd,
     }
 
     return LHKT_OK;
+}
+
+int loraham_send_config_freq(int conf_fd,
+                             const lhkt_config_t *cfg,
+                             double freq)
+{
+    if (freq <= 0.0) {
+        return LHKT_ERR_FORMAT;
+    }
+
+    return loraham_send_config_line(conf_fd, cfg, freq, 1);
+}
+
+/*
+ * Send initial LoRa config command.
+ * RX frequency is the normal receive frequency.
+ */
+int loraham_send_config(int conf_fd,
+                        const lhkt_config_t *cfg)
+{
+    if (!cfg) {
+        return LHKT_ERR;
+    }
+
+    if (cfg->have_rx_freq) {
+        return loraham_send_config_freq(conf_fd, cfg, cfg->rx_freq);
+    }
+
+    return loraham_send_config_line(conf_fd, cfg, 0.0, 0);
 }

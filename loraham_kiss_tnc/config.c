@@ -261,6 +261,22 @@ int lhkt_config_parse_line(lhkt_config_t *cfg, char *line, unsigned int line_no)
         return ret;
     }
 
+    if (strcmp(key, "tx_settle_ms") == 0) {
+        ret = parse_long_value(value, 0, 60000, &lval);
+        if (ret == LHKT_OK) {
+            cfg->tx_settle_ms = (int)lval;
+        }
+        return ret;
+    }
+
+    if (strcmp(key, "tx_return_ms") == 0) {
+        ret = parse_long_value(value, 0, 60000, &lval);
+        if (ret == LHKT_OK) {
+            cfg->tx_return_ms = (int)lval;
+        }
+        return ret;
+    }
+
     if (strcmp(key, "rx_freq") == 0) {
         return parse_optional_freq(value, &cfg->rx_freq, &cfg->have_rx_freq);
     }

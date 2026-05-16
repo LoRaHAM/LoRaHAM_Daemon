@@ -27,6 +27,8 @@ void lhkt_cli_print_usage(const char *prog)
     printf("      --rx-freq MHz        RX/config frequency\n");
     printf("      --tx-freq MHz        TX/config frequency\n");
     printf("      --rx-only            Disable TX\n");
+    printf("      --tx-settle-ms MS    Wait after TX freq switch\n");
+    printf("      --tx-return-ms MS    Wait after TX before RX restore\n");
     printf("  -v, --verbose            Verbose output\n");
     printf("  -h, --help               Show help\n");
 }
@@ -125,7 +127,9 @@ static int parse_cli_args(int argc, char **argv, lhkt_config_t *cfg)
         OPT_CONF_SOCKET,
         OPT_RX_FREQ,
         OPT_TX_FREQ,
-        OPT_RX_ONLY
+        OPT_RX_ONLY,
+        OPT_TX_SETTLE_MS,
+        OPT_TX_RETURN_MS
     };
 
     static const struct option long_opts[] = {
@@ -136,8 +140,10 @@ static int parse_cli_args(int argc, char **argv, lhkt_config_t *cfg)
         { "conf-socket", required_argument, 0, OPT_CONF_SOCKET },
         { "rx-freq",     required_argument, 0, OPT_RX_FREQ },
         { "tx-freq",     required_argument, 0, OPT_TX_FREQ },
-        { "rx-only",     no_argument,       0, OPT_RX_ONLY },
-        { "verbose",     no_argument,       0, 'v' },
+        { "rx-only",      no_argument,       0, OPT_RX_ONLY },
+        { "tx-settle-ms", required_argument, 0, OPT_TX_SETTLE_MS },
+        { "tx-return-ms", required_argument, 0, OPT_TX_RETURN_MS },
+        { "verbose",      no_argument,       0, 'v' },
         { "help",        no_argument,       0, 'h' },
         { 0, 0, 0, 0 }
     };
@@ -213,6 +219,20 @@ static int parse_cli_args(int argc, char **argv, lhkt_config_t *cfg)
             cfg->rx_only = 1;
             break;
 
+        case OPT_TX_SETTLE_MS:
+            ret = parse_int_arg(optarg, 0, 60000, &cfg->tx_settle_ms);
+            if (ret != LHKT_OK) {
+                return ret;
+            }
+            break;
+
+        case OPT_TX_RETURN_MS:
+            ret = parse_int_arg(optarg, 0, 60000, &cfg->tx_return_ms);
+            if (ret != LHKT_OK) {
+                return ret;
+            }
+            break;
+
         default:
             return LHKT_ERR_FORMAT;
         }
@@ -269,6 +289,8 @@ void lhkt_cli_print_config(const lhkt_config_t *cfg)
     printf("[CFG] rx_only=%d\n", cfg->rx_only);
     printf("[CFG] verbose=%d\n", cfg->verbose);
     printf("[CFG] stats_interval=%d\n", cfg->stats_interval);
+    printf("[CFG] tx_settle_ms=%d\n", cfg->tx_settle_ms);
+    printf("[CFG] tx_return_ms=%d\n", cfg->tx_return_ms);
 
     if (cfg->have_rx_freq) {
         printf("[CFG] rx_freq=%.6f\n", cfg->rx_freq);
