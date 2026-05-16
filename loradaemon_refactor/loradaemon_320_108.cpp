@@ -144,20 +144,10 @@
 #include <RadioLib.h>
 #include <lgpio.h>
 
+#include "daemon_protocol.h"
 #include "unix_socket.h"
 #include "client_set.h"
 #include "config_parser.h"
-
-#define buf_SIZE 256
-#define MAX_CLIENTS 10
-
-#define CAD_POLL_INTERVAL 30  // alle 30 x 10ms = ~300ms pro Wechsel
-
-// --- Sockets für beide Module
-#define DATA868_SOCKET "/tmp/lora868.sock"
-#define DATA433_SOCKET "/tmp/lora433.sock"
-#define CONF868_SOCKET "/tmp/loraconf868.sock"
-#define CONF433_SOCKET "/tmp/loraconf433.sock"
 
 // --- Globale Socket-FDs
 int data433_fd = -1, data868_fd = -1;

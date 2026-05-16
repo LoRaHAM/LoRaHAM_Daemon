@@ -29,6 +29,8 @@
 #include <time.h>
 #include <unistd.h>
 
+#include "../daemon_protocol.h"
+
 #if defined(__GNUC__)
 #define TEST_UNUSED __attribute__((unused))
 #else
@@ -39,13 +41,6 @@
 /* --- Small utility macros --- */
 
 #define ARRAY_LEN(a) ((int)(sizeof(a) / sizeof((a)[0])))
-
-/* --- Public daemon socket paths --- */
-
-#define SOCK_DATA_433 "/tmp/lora433.sock"
-#define SOCK_DATA_868 "/tmp/lora868.sock"
-#define SOCK_CONF_433 "/tmp/loraconf433.sock"
-#define SOCK_CONF_868 "/tmp/loraconf868.sock"
 
 /* --- Conservative integration-test timeouts --- */
 
