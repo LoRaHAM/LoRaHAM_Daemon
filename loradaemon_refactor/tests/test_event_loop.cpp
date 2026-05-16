@@ -2,6 +2,7 @@
 
 #include <stdio.h>
 #include <string.h>
+#include <unistd.h>
 
 /*
  * Event-loop unit tests.
@@ -63,6 +64,50 @@ static void test_select_set_ignores_negative_fd(void)
     expect_int("negative fd missing", event_loop_select_has_fd(&set, -1), 0);
 }
 
+
+static void test_select_wait_readable_pipe(void)
+{
+    EventLoopSelectSet set;
+    fd_set ready;
+    int fds[2];
+    char ch = 'x';
+
+    if (pipe(fds) != 0) {
+        g_fail++;
+        printf("[FAIL] pipe setup\n");
+        return;
+    }
+
+    event_loop_select_reset(&set);
+    event_loop_select_add_fd(&set, fds[0]);
+
+    if (write(fds[1], &ch, 1) != 1) {
+        close(fds[0]);
+        close(fds[1]);
+        g_fail++;
+        printf("[FAIL] pipe write\n");
+        return;
+    }
+
+    expect_int("select wait returns readable",
+               event_loop_select_wait(&set, &ready, 100000), 1);
+    expect_int("select wait marks pipe readable", FD_ISSET(fds[0], &ready) ? 1 : 0, 1);
+
+    close(fds[0]);
+    close(fds[1]);
+}
+
+static void test_select_wait_timeout(void)
+{
+    EventLoopSelectSet set;
+    fd_set ready;
+
+    event_loop_select_reset(&set);
+
+    expect_int("select wait timeout with no fds",
+               event_loop_select_wait(&set, &ready, 1000), 0);
+}
+
 /* --- CLI parsing and test sequence --- */
 
 int main(int argc, char **argv)
@@ -87,6 +132,8 @@ int main(int argc, char **argv)
     test_select_set_reset();
     test_select_set_add_fd();
     test_select_set_ignores_negative_fd();
+    test_select_wait_readable_pipe();
+    test_select_wait_timeout();
 
     printf("\nSummary: ok=%d fail=%d\n", g_ok, g_fail);
 

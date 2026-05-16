@@ -1357,10 +1357,8 @@ int main(int argc, char *argv[]) {
         client_set_add_fds(client_conf433, MAX_CLIENTS, &event_set.readfds, &event_set.maxfd);
         client_set_add_fds(client_conf868, MAX_CLIENTS, &event_set.readfds, &event_set.maxfd);
 
-        // --- Select timeout ---
-        struct timeval tv = {0, DAEMON_SELECT_TIMEOUT_USEC};
-        readfds = event_set.readfds;
-        int ret = select(event_set.maxfd, &readfds, NULL, NULL, &tv);
+        // --- Select wait ---
+        int ret = event_loop_select_wait(&event_set, &readfds, DAEMON_SELECT_TIMEOUT_USEC);
         if(ret<0){perror("select"); continue;}
 
         // --- Neue DATA Clients ---
