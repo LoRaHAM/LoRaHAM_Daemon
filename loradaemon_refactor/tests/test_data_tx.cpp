@@ -1,6 +1,7 @@
 #include "../data_tx.h"
 
 #include <stdio.h>
+#include <stdint.h>
 #include <string.h>
 
 /*
@@ -26,6 +27,18 @@ static void expect_size(const char *name, size_t actual, size_t expected)
     }
 }
 
+
+static void expect_int(const char *name, int actual, int expected)
+{
+    if (actual == expected) {
+        g_ok++;
+        printf("[ OK ] %s\n", name);
+    } else {
+        g_fail++;
+        printf("[FAIL] %s: expected %d, got %d\n", name, expected, actual);
+    }
+}
+
 /* --- Chunking behavior --- */
 
 static void test_chunk_size(void)
@@ -35,6 +48,63 @@ static void test_chunk_size(void)
     expect_size("max exact", data_tx_chunk_size(255), 255);
     expect_size("max plus one", data_tx_chunk_size(256), 255);
     expect_size("large input", data_tx_chunk_size(2048), 255);
+}
+
+
+typedef struct {
+    int calls;
+    size_t sizes[4];
+    size_t offsets[4];
+} ChunkRecorder;
+
+static int record_chunk(uint8_t *chunk, size_t len, size_t offset, void *ctx)
+{
+    ChunkRecorder *rec = (ChunkRecorder *)ctx;
+
+    (void)chunk;
+    rec->sizes[rec->calls] = len;
+    rec->offsets[rec->calls] = offset;
+    rec->calls++;
+    return 0;
+}
+
+static int stop_on_second_chunk(uint8_t *chunk, size_t len, size_t offset, void *ctx)
+{
+    ChunkRecorder *rec = (ChunkRecorder *)ctx;
+
+    (void)chunk;
+    rec->sizes[rec->calls] = len;
+    rec->offsets[rec->calls] = offset;
+    rec->calls++;
+
+    return rec->calls == 2 ? 1 : 0;
+}
+
+static void test_chunk_iterator(void)
+{
+    uint8_t buf[600] = {0};
+    ChunkRecorder rec = {0, {0}, {0}};
+
+    expect_size("iterator all bytes",
+                data_tx_for_each_chunk(buf, sizeof(buf), record_chunk, &rec),
+                sizeof(buf));
+    expect_int("iterator call count", rec.calls, 3);
+    expect_size("iterator first size", rec.sizes[0], 255);
+    expect_size("iterator second size", rec.sizes[1], 255);
+    expect_size("iterator third size", rec.sizes[2], 90);
+    expect_size("iterator second offset", rec.offsets[1], 255);
+    expect_size("iterator third offset", rec.offsets[2], 510);
+}
+
+static void test_chunk_iterator_stop(void)
+{
+    uint8_t buf[600] = {0};
+    ChunkRecorder rec = {0, {0}, {0}};
+
+    expect_size("iterator stop returns sent bytes",
+                data_tx_for_each_chunk(buf, sizeof(buf), stop_on_second_chunk, &rec),
+                255);
+    expect_int("iterator stop call count", rec.calls, 2);
 }
 
 /* --- CLI parsing and test sequence --- */
@@ -59,6 +129,8 @@ int main(int argc, char **argv)
     }
 
     test_chunk_size();
+    test_chunk_iterator();
+    test_chunk_iterator_stop();
 
     printf("\nSummary: ok=%d fail=%d\n", g_ok, g_fail);
 

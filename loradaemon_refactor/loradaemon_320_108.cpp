@@ -226,7 +226,7 @@ ssize_t recv_raw_nonblocking(int fd, uint8_t *buf, size_t max_size) {
 
 // Wenn du zurück an den Client sendest, kannst du entscheiden:
 // Willst du dem Client die Länge mitschicken oder nur die Rohdaten?
-ssize_t send_raw(int fd, const uint8_t *buf, uint8_t len) {
+ssize_t send_raw(int fd, uint8_t *buf, uint8_t len) {
     // Nur die Daten senden, ohne Längen-Byte vorab
     return write(fd, buf, len);
 }
@@ -246,7 +246,7 @@ ssize_t send_raw(int fd, const uint8_t *buf, uint8_t len) {
  * }
  */
 
-ssize_t send_frame(int fd,const uint8_t *buf,uint8_t len){
+ssize_t send_frame(int fd,uint8_t *buf,uint8_t len){
     if(write(fd,&len,1)!=1) return -1;
     return write(fd,buf,len);
 }
@@ -1248,6 +1248,59 @@ void lora_init() {
 
 /* --- Data client TX handling --- */
 
+
+static int send_data433_chunk(uint8_t *chunk, size_t len, size_t offset, void *ctx)
+{
+    (void)ctx;
+
+    // --- CAD-Guard: LoRa only ---
+    if (mode_433 == RADIO_MODE_LORA) {
+        int cad_wait = 0;
+        while (((radio_433->getModemStatus() & 0x01)) && cad_wait < 300) {
+            usleep(10000);
+            cad_wait++;
+        }
+        if (cad_wait >= 300) {
+            printf("[433] CAD-Timeout: Kanal dauerhaft belegt, Paket verworfen\n");
+            return 1;
+        }
+    }
+
+    printf("  -> Sende Chunk: %zu Bytes (Offset: %zu)\n", len, offset);
+
+    LED_433(1);
+    lora_send(chunk, len, 433);
+    LED_433(0);
+
+    return 0;
+}
+
+static int send_data868_chunk(uint8_t *chunk, size_t len, size_t offset, void *ctx)
+{
+    (void)ctx;
+
+    // --- CAD-Guard: LoRa only ---
+    if (mode_868 == RADIO_MODE_LORA) {
+        int cad_wait = 0;
+        while (((radio_868->getModemStatus() & 0x01)) && cad_wait < 300) {
+            usleep(10000);
+            cad_wait++;
+        }
+        if (cad_wait >= 300) {
+            printf("[868] CAD-Timeout: Kanal dauerhaft belegt, Paket verworfen\n");
+            return 1;
+        }
+    }
+
+    printf("  -> Sende Chunk: %zu Bytes (Offset: %zu)\n", len, offset);
+
+    LED_868(1);
+    lora_send(chunk, len, 868);
+    LED_868(0);
+
+    return 0;
+}
+
 static void process_data433_clients(const fd_set *readfds)
 {
     for(int i=0;i<MAX_CLIENTS;i++){
@@ -1258,31 +1311,7 @@ static void process_data433_clients(const fd_set *readfds)
             if(n > 0) {
                 printf("[DEBUG 433] %zd Bytes vom Socket erhalten. Zerteile in LoRa-Pakete...\n", n);
 
-                ssize_t bytes_sent = 0;
-                while(bytes_sent < n) {
-                    ssize_t chunk_size = (ssize_t)data_tx_chunk_size((size_t)(n - bytes_sent));
-
-                    // --- CAD-Guard: LoRa only ---
-                    if (mode_433 == RADIO_MODE_LORA) {
-                        int cad_wait = 0;
-                        while (((radio_433->getModemStatus() & 0x01)) && cad_wait < 300) {
-                            usleep(10000);
-                            cad_wait++;
-                        }
-                        if (cad_wait >= 300) {
-                            printf("[433] CAD-Timeout: Kanal dauerhaft belegt, Paket verworfen\n");
-                            break;
-                        }
-                    }
-
-                    printf("  -> Sende Chunk: %zd Bytes (Offset: %zd)\n", chunk_size, bytes_sent);
-
-                    LED_433(1);
-                    lora_send(large_buf + bytes_sent, chunk_size, 433);
-                    LED_433(0);
-
-                    bytes_sent += chunk_size;
-                }
+                data_tx_for_each_chunk(large_buf, (size_t)n, send_data433_chunk, NULL);
             }
         }
     }
@@ -1299,31 +1328,7 @@ static void process_data868_clients(const fd_set *readfds)
             if(n > 0) {
                 printf("[DEBUG 868] %zd Bytes vom Socket erhalten. Zerteile in LoRa-Pakete...\n", n);
 
-                ssize_t bytes_sent = 0;
-                while(bytes_sent < n) {
-                    ssize_t chunk_size = (ssize_t)data_tx_chunk_size((size_t)(n - bytes_sent));
-
-                    // --- CAD-Guard: LoRa only ---
-                    if (mode_868 == RADIO_MODE_LORA) {
-                        int cad_wait = 0;
-                        while (((radio_868->getModemStatus() & 0x01)) && cad_wait < 300) {
-                            usleep(10000);
-                            cad_wait++;
-                        }
-                        if (cad_wait >= 300) {
-                            printf("[868] CAD-Timeout: Kanal dauerhaft belegt, Paket verworfen\n");
-                            break;
-                        }
-                    }
-
-                    printf("  -> Sende Chunk: %zd Bytes (Offset: %zd)\n", chunk_size, bytes_sent);
-
-                    LED_868(1);
-                    lora_send(large_buf + bytes_sent, chunk_size, 868);
-                    LED_868(0);
-
-                    bytes_sent += chunk_size;
-                }
+                data_tx_for_each_chunk(large_buf, (size_t)n, send_data868_chunk, NULL);
             }
         }
     }
