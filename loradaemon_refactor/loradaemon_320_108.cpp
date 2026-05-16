@@ -1361,17 +1361,9 @@ int main(int argc, char *argv[]) {
         int ret = event_loop_select_wait(&event_set, &readfds, DAEMON_SELECT_TIMEOUT_USEC);
         if(ret<0){perror("select"); continue;}
 
-        // --- Neue DATA Clients ---
-        if(event_loop_select_ready_fd(&readfds, data433_fd)){
-            client_set_accept(data433_fd, client_data433, MAX_CLIENTS); /*printf("Neuer DATA433-Client verbunden.\n");*/ }
-            if(event_loop_select_ready_fd(&readfds, data868_fd)){
-                client_set_accept(data868_fd, client_data868, MAX_CLIENTS); /*printf("Neuer DATA868-Client verbunden.\n");*/ }
-
-                // --- Neue CONFIG Clients ---
-                if(event_loop_select_ready_fd(&readfds, conf433_fd)){
-                    client_set_accept(conf433_fd, client_conf433, MAX_CLIENTS); /*printf("Neuer CONF433-Client verbunden.\n");*/ }
-                    if(event_loop_select_ready_fd(&readfds, conf868_fd)){
-                        client_set_accept(conf868_fd, client_conf868, MAX_CLIENTS); /*printf("Neuer CONF868-Client verbunden.\n");*/ }
+        // --- Neue Clients ---
+        radio_channel_accept_ready(&channel_433, &readfds);
+        radio_channel_accept_ready(&channel_868, &readfds);
 
 
                         // --- DATA433-Clients bearbeiten ---

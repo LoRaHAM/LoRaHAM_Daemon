@@ -5,6 +5,7 @@
 #include "daemon_protocol.h"
 #include "unix_socket.h"
 #include "client_set.h"
+#include "event_loop.h"
 
 #include <stdio.h>
 
@@ -26,6 +27,16 @@ void radio_channel_io_init(RadioChannelIo *ch,
     ch->conf_listen_fd = conf_listen_fd;
     ch->data_clients = data_clients;
     ch->conf_clients = conf_clients;
+}
+
+
+void radio_channel_accept_ready(RadioChannelIo *ch, const fd_set *ready)
+{
+    if(event_loop_select_ready_fd(ready, *ch->data_listen_fd))
+        client_set_accept(*ch->data_listen_fd, ch->data_clients, MAX_CLIENTS);
+
+    if(event_loop_select_ready_fd(ready, *ch->conf_listen_fd))
+        client_set_accept(*ch->conf_listen_fd, ch->conf_clients, MAX_CLIENTS);
 }
 
 void radio_channel_open_sockets(RadioChannelIo *ch)
