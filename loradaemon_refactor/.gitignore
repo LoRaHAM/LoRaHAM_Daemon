@@ -26,3 +26,6 @@ core.*
 *~
 *.swp
 *.swo
+/tests/test_config_parser
+/tests/test_rssi_multiclient
+/tests/test_daemon_timing
