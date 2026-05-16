@@ -209,6 +209,10 @@ int tnc2_format_line(const ax25_frame_t *frame,
         return LHKT_ERR_LONG;
     }
 
+    if (frame->payload_len > LHKT_AX25_MAX_PAYLOAD) {
+        return LHKT_ERR_LONG;
+    }
+
     for (i = 0; i < frame->payload_len; i++) {
         if (frame->payload[i] == 0) {
             return LHKT_ERR_FORMAT;
@@ -260,10 +264,6 @@ int tnc2_format_line(const ax25_frame_t *frame,
     ret = tnc2_append_str(out, out_size, &pos, ":");
     if (ret != LHKT_OK) {
         return ret;
-    }
-
-    if (frame->payload_len > LHKT_AX25_MAX_PAYLOAD) {
-        return LHKT_ERR_LONG;
     }
 
     if (frame->payload_len > 0) {

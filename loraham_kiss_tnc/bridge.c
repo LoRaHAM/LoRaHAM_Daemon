@@ -21,7 +21,7 @@
  * One KISS/TCP client is bridged to one LoRaHAM daemon data socket.
  */
 
-#define LHKT_RX_IDLE_FLUSH_USEC 50000
+#define LHKT_RX_IDLE_FLUSH_USEC 250000
 #define LHKT_RECONNECT_DELAY_SEC 1
 #define LHKT_CLIENT_WRITE_TIMEOUT_SEC 2
 

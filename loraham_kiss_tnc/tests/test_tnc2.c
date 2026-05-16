@@ -130,6 +130,22 @@ static void test_reject_nul_payload(void)
     assert(tnc2_format_line(&frame, line, sizeof(line), &line_len) == LHKT_ERR_FORMAT);
 }
 
+static void test_reject_oversized_format_payload(void)
+{
+    ax25_frame_t frame;
+    char line[LHKT_TNC2_MAX_LINE];
+    size_t line_len = 0;
+
+    ax25_frame_init(&frame);
+
+    assert(ax25_addr_parse("APRS", &frame.dst) == LHKT_OK);
+    assert(ax25_addr_parse("DJ0CHE-10", &frame.src) == LHKT_OK);
+
+    frame.payload_len = LHKT_AX25_MAX_PAYLOAD + 1;
+
+    assert(tnc2_format_line(&frame, line, sizeof(line), &line_len) == LHKT_ERR_LONG);
+}
+
 static void test_reject_invalid(void)
 {
     ax25_frame_t frame;
@@ -164,6 +180,7 @@ int main(void)
     test_format_roundtrip();
     test_reject_oversized_format_path();
     test_reject_nul_payload();
+    test_reject_oversized_format_payload();
     test_reject_invalid();
 
     puts("test_tnc2: OK");
