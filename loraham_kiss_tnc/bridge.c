@@ -13,6 +13,7 @@
 #include <string.h>
 #include <sys/select.h>
 #include <sys/time.h>
+#include <time.h>
 #include <unistd.h>
 
 /*
@@ -133,6 +134,30 @@ static int connect_loraham_data_socket(const lhkt_config_t *cfg)
 
     printf("[LoRaHAM] Data socket connected: %s\n", cfg->data_socket);
     return fd;
+}
+
+static void print_stats_if_due(const lhkt_config_t *cfg,
+                               lhkt_stats_t *stats,
+                               time_t *next_stats)
+{
+    time_t now;
+
+    if (!cfg || !stats || !next_stats || cfg->stats_interval <= 0) {
+        return;
+    }
+
+    now = time(NULL);
+    if (*next_stats == 0) {
+        *next_stats = now + cfg->stats_interval;
+        return;
+    }
+
+    if (now < *next_stats) {
+        return;
+    }
+
+    lhkt_stats_print(stats);
+    *next_stats = now + cfg->stats_interval;
 }
 
 /*
@@ -422,6 +447,9 @@ int lhkt_bridge_run(const lhkt_config_t *cfg, lhkt_stats_t *stats)
     fd_set rfds;
     struct timeval tv;
     struct timeval *timeout;
+    time_t next_stats;
+    time_t now;
+    long stats_wait;
 
     kiss_decoder_t kiss_dec;
     kiss_frame_t kiss_frame;
@@ -436,6 +464,7 @@ int lhkt_bridge_run(const lhkt_config_t *cfg, lhkt_stats_t *stats)
     conf_fd = -1;
     listen_fd = -1;
     client_fd = -1;
+    next_stats = 0;
 
     kiss_decoder_init(&kiss_dec);
     kiss_params_init(&kiss_params);
@@ -478,6 +507,8 @@ int lhkt_bridge_run(const lhkt_config_t *cfg, lhkt_stats_t *stats)
     printf("[KISS] Waiting for client...\n");
 
     for (;;) {
+        print_stats_if_due(cfg, stats, &next_stats);
+
         FD_ZERO(&rfds);
         max_fd = -1;
 
@@ -507,6 +538,28 @@ int lhkt_bridge_run(const lhkt_config_t *cfg, lhkt_stats_t *stats)
             tv.tv_sec = 0;
             tv.tv_usec = LHKT_RX_IDLE_FLUSH_USEC;
             timeout = &tv;
+        }
+
+        if (stats && cfg->stats_interval > 0) {
+            now = time(NULL);
+            if (next_stats == 0) {
+                next_stats = now + cfg->stats_interval;
+            }
+
+            if (next_stats <= now) {
+                tv.tv_sec = 0;
+                tv.tv_usec = 0;
+                timeout = &tv;
+            } else {
+                stats_wait = (long)(next_stats - now);
+                if (!timeout ||
+                    tv.tv_sec > stats_wait ||
+                    (tv.tv_sec == stats_wait && tv.tv_usec > 0)) {
+                    tv.tv_sec = stats_wait;
+                    tv.tv_usec = 0;
+                    timeout = &tv;
+                }
+            }
         }
 
         ret = select(max_fd + 1, &rfds, NULL, NULL, timeout);
