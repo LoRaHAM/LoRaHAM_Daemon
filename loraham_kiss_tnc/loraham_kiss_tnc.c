@@ -24,7 +24,6 @@ void lhkt_config_defaults(lhkt_config_t *cfg)
     cfg->tx_settle_ms = 100;
     cfg->tx_return_ms = 1000;
 
-    snprintf(cfg->mode, sizeof(cfg->mode), "%s", LHKT_DEFAULT_MODE);
 
     cfg->rx_freq = 433.775;
     cfg->tx_freq = 433.900;

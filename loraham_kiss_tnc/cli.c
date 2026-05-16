@@ -285,7 +285,6 @@ void lhkt_cli_print_config(const lhkt_config_t *cfg)
     printf("[CFG] kiss_port=%d\n", cfg->kiss_port);
     printf("[CFG] data_socket=%s\n", cfg->data_socket);
     printf("[CFG] conf_socket=%s\n", cfg->conf_socket);
-    printf("[CFG] mode=%s\n", cfg->mode);
     printf("[CFG] rx_only=%d\n", cfg->rx_only);
     printf("[CFG] verbose=%d\n", cfg->verbose);
     printf("[CFG] stats_interval=%d\n", cfg->stats_interval);

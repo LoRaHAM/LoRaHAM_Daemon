@@ -12,6 +12,7 @@ APRS client <-> KISS/TCP <-> loraham_kiss_tnc <-> /tmp/lora433.sock <-> loraham_
 - KISS port 0 only
 - APRS/TNC2 text payload only
 - TX path intentionally blocks during tx timing
+- mode=LORA only - because FSK is not used in LoRa APRS
 
 ## Build
 
@@ -56,7 +57,7 @@ Options:
 
 ## Serial KISS
 
-Xastir only supports Serial KISS TNC. You can use socat to forward the byte-stream to a PTY.
+Xastir ans YAAC only support Serial KISS TNC. You can use socat to forward the byte-stream to a PTY.
 This works over network, too.
 
 Start socat on the machine with the APRS-Client and point to the machine running the TNC.

@@ -24,7 +24,6 @@ static void test_defaults(void)
     assert(cfg.have_tx_freq == 1);
     assert(cfg.rx_freq > 433.774 && cfg.rx_freq < 433.776);
     assert(cfg.tx_freq > 433.899 && cfg.tx_freq < 433.901);
-    assert(strcmp(cfg.mode, "LORA") == 0);
     assert(cfg.sf == 12);
     assert(cfg.bw == 125.0);
     assert(cfg.cr == 5);
@@ -44,7 +43,6 @@ static void test_parse_line(void)
     char line3[] = "syncword = 0x34";
     char line4[] = "rx_freq = 433.775";
     char line5[] = "# full line comment";
-    char line6[] = "mode = FSK";
     char line7[] = "tx_settle_ms = 250";
     char line8[] = "tx_return_ms = 750";
     char line9[] = "ldro = AUTO";
@@ -67,8 +65,6 @@ static void test_parse_line(void)
     assert(cfg.rx_freq > 433.774 && cfg.rx_freq < 433.776);
 
     assert(lhkt_config_parse_line(&cfg, line5, 5) == LHKT_OK);
-    assert(lhkt_config_parse_line(&cfg, line6, 6) == LHKT_OK);
-    assert(strcmp(cfg.mode, "FSK") == 0);
 
     assert(lhkt_config_parse_line(&cfg, line7, 7) == LHKT_OK);
     assert(cfg.tx_settle_ms == 250);
@@ -124,7 +120,6 @@ static void test_load_file(void)
     fprintf(fp, "stats_interval = 30\n");
     fprintf(fp, "tx_settle_ms = 250\n");
     fprintf(fp, "tx_return_ms = 750\n");
-    fprintf(fp, "mode = LORA\n");
     fprintf(fp, "rx_freq = 433.775\n");
     fprintf(fp, "tx_freq = 433.900\n");
     fprintf(fp, "sf = 11\n");
@@ -150,7 +145,6 @@ static void test_load_file(void)
     assert(cfg.stats_interval == 30);
     assert(cfg.tx_settle_ms == 250);
     assert(cfg.tx_return_ms == 750);
-    assert(strcmp(cfg.mode, "LORA") == 0);
     assert(cfg.have_rx_freq == 1);
     assert(cfg.have_tx_freq == 1);
     assert(cfg.rx_freq > 433.774 && cfg.rx_freq < 433.776);
@@ -175,8 +169,8 @@ static void test_reject_invalid(void)
     char bad2[] = "sf = 99";
     char bad3[] = "unknown_key = value";
     char bad4[] = "not_a_key_value_line";
-    char bad5[] = "mode = BADMODE";
-    char bad6[] = "mode = LORA FREQ=1";
+    char bad5[] = "mode = LORA";
+    char bad6[] = "mode = FSK";
     char bad7[] = "tx_return_ms = 60001";
     char bad8[] = "ldro = maybe";
 

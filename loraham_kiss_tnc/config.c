@@ -166,16 +166,6 @@ static int parse_optional_freq(const char *value,
     return LHKT_OK;
 }
 
-static int is_allowed_mode(const char *text)
-{
-    if (!text) {
-        return 0;
-    }
-
-    return strcmp(text, "LORA") == 0 ||
-           strcmp(text, "FSK") == 0;
-}
-
 
 /*
  * Parse one config line.
@@ -236,13 +226,6 @@ int lhkt_config_parse_line(lhkt_config_t *cfg, char *line, unsigned int line_no)
         return copy_string(cfg->conf_socket, sizeof(cfg->conf_socket), value);
     }
 
-    if (strcmp(key, "mode") == 0) {
-        if (!is_allowed_mode(value)) {
-            return LHKT_ERR_FORMAT;
-        }
-
-        return copy_string(cfg->mode, sizeof(cfg->mode), value);
-    }
 
     if (strcmp(key, "kiss_port") == 0) {
         ret = parse_long_value(value, 1, 65535, &lval);

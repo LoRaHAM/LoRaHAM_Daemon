@@ -21,8 +21,6 @@
 #define LHKT_DEFAULT_KISS_PORT   8001
 #define LHKT_DEFAULT_DATA_SOCKET "/tmp/lora433.sock"
 #define LHKT_DEFAULT_CONF_SOCKET "/tmp/loraconf433.sock"
-#define LHKT_DEFAULT_MODE        "LORA"
-
 /* Fehlercodes */
 #define LHKT_OK                 0
 #define LHKT_ERR               -1
@@ -45,7 +43,6 @@ typedef struct {
     int tx_settle_ms;
     int tx_return_ms;
 
-    char mode[16];
 
     double rx_freq;
     double tx_freq;
