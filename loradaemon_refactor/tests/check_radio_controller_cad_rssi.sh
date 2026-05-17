@@ -36,8 +36,6 @@ require "daemon_process_rssi_stream_one(&radio_controller_868, &channel_868)" "8
 require "radio_channel_read_live_rssi(ctrl->mod" "RSSI reads controller module"
 require "ctrl->mode" "RSSI/CAD uses controller mode"
 require "ctrl->is_hf" "RSSI uses controller HF flag"
-require "daemon_radio_controller_sync_rx_tx_from_legacy_state()" "RX/TX compatibility sync"
-require "daemon_radio_controller_sync_cad_rssi_to_legacy_state()" "CAD/RSSI legacy mirror"
 
 forbid "getrssi_433_active && !txBusy433" "433 RSSI legacy condition"
 forbid "getrssi_868_active && !txBusy868" "868 RSSI legacy condition"

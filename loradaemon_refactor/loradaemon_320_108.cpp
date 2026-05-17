@@ -227,34 +227,17 @@ static void daemon_enter_background(void)
     freopen("/tmp/lora_daemon.log", "w", stdout); // Optional: In Datei loggen
     freopen("/tmp/lora_daemon.log", "w", stderr);
 }
-/* --- Radio runtime state ------------------------------------------------- */
-// Runtime-Zustand pro Band
-RadioChannelRuntime runtime_433;
-RadioChannelRuntime runtime_868;
+/* --- Radio controller state ---------------------------------------------- */
 
 // --- Pin-Setup für LED
 #define PIN_433 13
 #define PIN_868 19
 
-/* --- Radio controller skeleton ------------------------------------------ */
-// Noch nicht autoritativ: die bestehende Logik nutzt weiter die Legacy-Globals.
 void setFlag433(void);
 void setFlag868(void);
 
 RadioController<SX1278> radio_controller_433;
 RadioController<RFM95> radio_controller_868;
-
-// --- LoRa Setup ---
-PiHal* hal_433 = nullptr;
-Module* mod_433 = nullptr;
-SX1278* radio_433 = nullptr;
-
-PiHal* hal_868 = nullptr;
-Module* mod_868 = nullptr;
-RFM95* radio_868 = nullptr;
-
-volatile RadioHealth radio_health_433 = RADIO_HEALTH_UNINITIALIZED;
-volatile RadioHealth radio_health_868 = RADIO_HEALTH_UNINITIALIZED;
 
 int h = -1;
 int chip = -1;
@@ -289,40 +272,10 @@ void LED_868(int state) {
 }
 
 
-// --- Flag für empfangene Pakete 868 ---
-volatile bool receivedFlag868 = false;
-volatile bool receivedFlag433 = false;
-
-volatile bool txBusy433 = false;
-volatile bool txBusy868 = false;
-
-// --- CAD-Status (Channel Activity Detection) für beide Bänder ---
-// true = Kanal war beim letzten Scan belegt
-volatile bool cad433_active = false;
-volatile bool cad868_active = false;
-
-// --- GETRSSI-Status: Kontinuierliche RSSI-Übertragung an CONF-Clients ---
-// Aktivierung: SET GETRSSI=1 / Deaktivierung: SET GETRSSI=0 auf dem jeweiligen
-// Conf-Socket (loraconf433.sock bzw. loraconf868.sock).
-// Sendet im aktiven Zustand mit 10 Hz "RSSI=-87.50\n" an alle verbundenen
-// Conf-Clients dieses Bandes. Funktioniert in LORA- UND FSK-Modus.
-// Auto-Stop: wird auf false gesetzt, sobald kein Conf-Client mehr verbunden ist.
-volatile bool getrssi_433_active = false;
-volatile bool getrssi_868_active = false;
-
 /* --- RX drop statistics -------------------------------------------------- */
 // Rate-limited counters for invalid RadioLib RX reads.
-static unsigned long rx_drop_433 = 0;
-static unsigned long rx_drop_868 = 0;
-
 #define RX_DROP_LOG_INITIAL 5
 #define RX_DROP_LOG_INTERVAL 100
-
-// --- Modusverwaltung: LoRa oder FSK pro Band ---
-// Default: LORA -> volle Rückwärtskompatibilität mit alten Clients
-// Umschalten nur durch explizites "SET MODE=FSK" bzw. "SET MODE=LORA"
-volatile RadioMode_t mode_433 = RADIO_MODE_LORA;
-volatile RadioMode_t mode_868 = RADIO_MODE_LORA;
 
 static void daemon_radio_controller_init(void)
 {
@@ -340,91 +293,13 @@ static void daemon_radio_controller_init(void)
                           PIN_868);
 }
 
-static void daemon_radio_controller_sync_legacy_pointers(void)
-{
-    radio_controller_433.hal = hal_433;
-    radio_controller_433.mod = mod_433;
-    radio_controller_433.radio = radio_433;
-
-    radio_controller_868.hal = hal_868;
-    radio_controller_868.mod = mod_868;
-    radio_controller_868.radio = radio_868;
-}
-
-static void daemon_radio_controller_sync_legacy_state(void)
-{
-    radio_controller_433.health = radio_health_433;
-    radio_controller_433.mode = mode_433;
-    radio_controller_433.received = receivedFlag433;
-    radio_controller_433.tx_busy = txBusy433;
-    radio_controller_433.cad_active = cad433_active;
-    radio_controller_433.getrssi_active = getrssi_433_active;
-    radio_controller_433.rx_drops = rx_drop_433;
-
-    radio_controller_868.health = radio_health_868;
-    radio_controller_868.mode = mode_868;
-    radio_controller_868.received = receivedFlag868;
-    radio_controller_868.tx_busy = txBusy868;
-    radio_controller_868.cad_active = cad868_active;
-    radio_controller_868.getrssi_active = getrssi_868_active;
-    radio_controller_868.rx_drops = rx_drop_868;
-}
-
-static void daemon_radio_controller_sync_config_to_legacy_state(void)
-{
-    mode_433 = radio_controller_433.mode;
-    getrssi_433_active = radio_controller_433.getrssi_active;
-
-    mode_868 = radio_controller_868.mode;
-    getrssi_868_active = radio_controller_868.getrssi_active;
-}
-
-static void daemon_radio_controller_sync_rx_tx_from_legacy_state(void)
-{
-    radio_controller_433.received = receivedFlag433;
-    radio_controller_433.tx_busy = txBusy433;
-
-    radio_controller_868.received = receivedFlag868;
-    radio_controller_868.tx_busy = txBusy868;
-}
-
-static void daemon_radio_controller_sync_cad_rssi_to_legacy_state(void)
-{
-    cad433_active = radio_controller_433.cad_active;
-    getrssi_433_active = radio_controller_433.getrssi_active;
-
-    cad868_active = radio_controller_868.cad_active;
-    getrssi_868_active = radio_controller_868.getrssi_active;
-}
-
-static void daemon_radio_controller_sync_rx_to_legacy_state(void)
-{
-    receivedFlag433 = radio_controller_433.received;
-    rx_drop_433 = radio_controller_433.rx_drops;
-
-    receivedFlag868 = radio_controller_868.received;
-    rx_drop_868 = radio_controller_868.rx_drops;
-}
-
-static void daemon_radio_controller_sync_tx_to_legacy_state(void)
-{
-    receivedFlag433 = radio_controller_433.received;
-    txBusy433 = radio_controller_433.tx_busy;
-
-    receivedFlag868 = radio_controller_868.received;
-    txBusy868 = radio_controller_868.tx_busy;
-}
-
-
 // --- Callback für 868 ---
 void setFlag868(void) {
-    receivedFlag868 = true;
     radio_controller_868.received = true;
     LED_868(1);
     //usleep(50000);
 }
 void setFlag433(void) {
-    receivedFlag433 = true;
     radio_controller_433.received = true;
     LED_433(1);
     //usleep(50000);
@@ -451,25 +326,26 @@ static bool lora_send_valid_band(int band)
     return band == 433 || band == 868;
 }
 
-static volatile RadioHealth *daemon_radio_health_ptr(int band)
-{
-    if (band == 433)
-        return radio_controller_health_ptr(&radio_controller_433);
-
-    return radio_controller_health_ptr(&radio_controller_868);
-}
-
 static RadioHealth daemon_radio_health(int band)
 {
     if (!lora_send_valid_band(band))
         return RADIO_HEALTH_FAILED;
 
-    return *daemon_radio_health_ptr(band);
+    if (band == 433)
+        return radio_controller_health(&radio_controller_433);
+
+    return radio_controller_health(&radio_controller_868);
 }
 
 static bool daemon_radio_ready(int band)
 {
-    return radio_health_is_ready(daemon_radio_health(band));
+    if (!lora_send_valid_band(band))
+        return false;
+
+    if (band == 433)
+        return radio_controller_ready(&radio_controller_433);
+
+    return radio_controller_ready(&radio_controller_868);
 }
 
 static void lora_print_tx_preview(const uint8_t *buf, size_t len)
@@ -516,7 +392,6 @@ static void lora_send_prepare_controller_tx(RadioController<RadioT> *ctrl)
 
     // WICHTIG: RX-Flag clearen und Callback deaktivieren!
     ctrl->received = false;
-    daemon_radio_controller_sync_tx_to_legacy_state();
 
     // Im FSK-Modus keinen Callback clearen (wird anders behandelt)
     if (ctrl->mode == RADIO_MODE_LORA)
@@ -576,15 +451,15 @@ static TxResult lora_send_controller(RadioController<RadioT> *ctrl,
 
     /*
      *        // WICHTIG: LoRa-Parameter nochmal setzen (für TX!)
-     *        radio_433->setFrequency(433.775);
-     *        radio_433->setSpreadingFactor(12);
-     *        radio_433->setBandwidth(125.0);
-     *        radio_433->setCodingRate(5);
-     *        radio_433->setSyncWord(0x12);
-     *        radio_433->setPreambleLength(8);
-     *        radio_433->setCRC(true);
-     *        radio_433->explicitHeader();
-     *        radio_433->setOutputPower(10);
+     *        radio_controller_433.radio->setFrequency(433.775);
+     *        radio_controller_433.radio->setSpreadingFactor(12);
+     *        radio_controller_433.radio->setBandwidth(125.0);
+     *        radio_controller_433.radio->setCodingRate(5);
+     *        radio_controller_433.radio->setSyncWord(0x12);
+     *        radio_controller_433.radio->setPreambleLength(8);
+     *        radio_controller_433.radio->setCRC(true);
+     *        radio_controller_433.radio->explicitHeader();
+     *        radio_controller_433.radio->setOutputPower(10);
      */
     if (ctrl->band == RADIO_BAND_433) {
         // Nochmal IRQs clearen
@@ -621,8 +496,6 @@ static TxResult lora_send_controller(RadioController<RadioT> *ctrl,
     ctrl->tx_busy = false;
     ctrl->radio->startReceive();
 
-    daemon_radio_controller_sync_tx_to_legacy_state();
-
     return state == RADIOLIB_ERR_NONE
         ? TX_RESULT_OK
         : TX_RESULT_RADIO_ERROR;
@@ -656,90 +529,86 @@ TxResult lora_send(uint8_t *buf, size_t len, int band) {
 void lora_init() {
     printf("[Init] Starte Dualband LoRa Receiver (433 + 868)\n");
 
-    radio_health_433 = RADIO_HEALTH_UNINITIALIZED;
-    radio_health_868 = RADIO_HEALTH_UNINITIALIZED;
-    daemon_radio_controller_sync_legacy_state();
+    radio_controller_433.health = RADIO_HEALTH_UNINITIALIZED;
+    radio_controller_868.health = RADIO_HEALTH_UNINITIALIZED;
 
     if (h < 0) {
         printf("[GPIO] Fehler: gpiochip0 konnte nicht geöffnet werden!\n");
-        radio_health_433 = RADIO_HEALTH_FAILED;
-        radio_health_868 = RADIO_HEALTH_FAILED;
-        daemon_radio_controller_sync_legacy_state();
+        radio_controller_433.health = RADIO_HEALTH_FAILED;
+        radio_controller_868.health = RADIO_HEALTH_FAILED;
         return;
     }
 
     LED_433(1);
 
-    hal_433   = new PiHal(0);
-    mod_433   = new Module(hal_433, 8, 25, 5, 24);
-    radio_433 = new SX1278(mod_433);
+    radio_controller_433.hal   = new PiHal(0);
+    radio_controller_433.mod   = new Module(radio_controller_433.hal, 8, 25, 5, 24);
+    radio_controller_433.radio = new SX1278(radio_controller_433.mod);
 
-    hal_868   = new PiHal(0);
-    mod_868   = new Module(hal_868, 7, 16, 6, 12);
-    radio_868 = new RFM95(mod_868);
+    radio_controller_868.hal   = new PiHal(0);
+    radio_controller_868.mod   = new Module(radio_controller_868.hal, 7, 16, 6, 12);
+    radio_controller_868.radio = new RFM95(radio_controller_868.mod);
 
-    daemon_radio_controller_sync_legacy_pointers();
-
-    int state_433 = radio_433->begin();
+    int state_433 = radio_controller_433.radio->begin();
     if (state_433 == RADIOLIB_ERR_NONE) {
-        radio_health_433 = RADIO_HEALTH_READY;
+        radio_controller_433.health = RADIO_HEALTH_READY;
         printf("[433] Init OK\n");
 
         // LoRa-APRS:
-        radio_433->setFrequency(433.900);
-        radio_433->setSpreadingFactor(12);
-        radio_433->setBandwidth(125.0);
-        radio_433->setSyncWord(0x12);
-        radio_433->setPreambleLength(8);
-        radio_433->setCodingRate(5);
-        radio_433->setCRC(true);
-        radio_433->autoLDRO();
-        radio_433->forceLDRO(1);
-        radio_433->setOutputPower(10);
+        radio_controller_433.radio->setFrequency(433.900);
+        radio_controller_433.radio->setSpreadingFactor(12);
+        radio_controller_433.radio->setBandwidth(125.0);
+        radio_controller_433.radio->setSyncWord(0x12);
+        radio_controller_433.radio->setPreambleLength(8);
+        radio_controller_433.radio->setCodingRate(5);
+        radio_controller_433.radio->setCRC(true);
+        radio_controller_433.radio->autoLDRO();
+        radio_controller_433.radio->forceLDRO(1);
+        radio_controller_433.radio->setOutputPower(10);
 
         /*
          *
          * // LoRa DX Cluster:
-         *    radio_433->setFrequency(433.900);
-         *    radio_433->setSpreadingFactor(10);
-         *    radio_433->setBandwidth(125.0);
-         *    radio_433->setSyncWord(0x12);
-         *    radio_433->setPreambleLength(8);
-         *    radio_433->setCodingRate(5);
-         *    radio_433->setCRC(true);
-         *    radio_433->autoLDRO();
-         *    radio_433->setOutputPower(10);
+         *    radio_controller_433.radio->setFrequency(433.900);
+         *    radio_controller_433.radio->setSpreadingFactor(10);
+         *    radio_controller_433.radio->setBandwidth(125.0);
+         *    radio_controller_433.radio->setSyncWord(0x12);
+         *    radio_controller_433.radio->setPreambleLength(8);
+         *    radio_controller_433.radio->setCodingRate(5);
+         *    radio_controller_433.radio->setCRC(true);
+         *    radio_controller_433.radio->autoLDRO();
+         *    radio_controller_433.radio->setOutputPower(10);
          *
          *
          *
          * // Meshtastic 433:
          *
-         *    radio_433->setFrequency(433.900); // DB0ARD
-         *    radio_433->setSpreadingFactor(11);
-         *    radio_433->setBandwidth(125.0);
-         *    radio_433->setSyncWord(0x2B);
-         *    radio_433->setPreambleLength(16);
-         *    radio_433->setCodingRate(5);
-         *    radio_433->setCRC(true);
-         *    radio_433->autoLDRO();
-         *    radio_433->setOutputPower(10);
+         *    radio_controller_433.radio->setFrequency(433.900); // DB0ARD
+         *    radio_controller_433.radio->setSpreadingFactor(11);
+         *    radio_controller_433.radio->setBandwidth(125.0);
+         *    radio_controller_433.radio->setSyncWord(0x2B);
+         *    radio_controller_433.radio->setPreambleLength(16);
+         *    radio_controller_433.radio->setCodingRate(5);
+         *    radio_controller_433.radio->setCRC(true);
+         *    radio_controller_433.radio->autoLDRO();
+         *    radio_controller_433.radio->setOutputPower(10);
          *
          *
          * // Meshcom:
          *
-         *    radio_433->setFrequency(433.175);
-         *    radio_433->setSpreadingFactor(11);
-         *    radio_433->setBandwidth(250.0);
-         *    radio_433->setSyncWord(0x2B);
-         *    radio_433->setPreambleLength(8);
-         *    radio_433->setCodingRate(6);
-         *    radio_433->setCRC(true);
-         *    //radio_433->autoLDRO();
-         *    radio_433->setOutputPower(10);
+         *    radio_controller_433.radio->setFrequency(433.175);
+         *    radio_controller_433.radio->setSpreadingFactor(11);
+         *    radio_controller_433.radio->setBandwidth(250.0);
+         *    radio_controller_433.radio->setSyncWord(0x2B);
+         *    radio_controller_433.radio->setPreambleLength(8);
+         *    radio_controller_433.radio->setCodingRate(6);
+         *    radio_controller_433.radio->setCRC(true);
+         *    //radio_controller_433.radio->autoLDRO();
+         *    radio_controller_433.radio->setOutputPower(10);
          */
-        radio_433->setPacketReceivedAction(setFlag433); // Callback nutzen
+        radio_controller_433.radio->setPacketReceivedAction(setFlag433); // Callback nutzen
     } else {
-        radio_health_433 = RADIO_HEALTH_FAILED;
+        radio_controller_433.health = RADIO_HEALTH_FAILED;
         printf("[433] Init FEHLGESCHLAGEN: %d\n", state_433);
     }
 
@@ -747,42 +616,40 @@ void lora_init() {
 
     LED_868(1);
 
-    int state_868 = radio_868->begin();
+    int state_868 = radio_controller_868.radio->begin();
     if (state_868 == RADIOLIB_ERR_NONE) {
-        radio_health_868 = RADIO_HEALTH_READY;
+        radio_controller_868.health = RADIO_HEALTH_READY;
         printf("[868] Init OK\n");
 
-        radio_868->setFrequency(869.525);
-        radio_868->setSpreadingFactor(11);
-        radio_868->setBandwidth(250.0);
-        radio_868->setSyncWord(0x2B);
-        radio_868->setPreambleLength(16);
-        radio_868->setCodingRate(5);
-        radio_868->setCRC(true);
-        radio_868->autoLDRO();
-        radio_868->setOutputPower(10);
+        radio_controller_868.radio->setFrequency(869.525);
+        radio_controller_868.radio->setSpreadingFactor(11);
+        radio_controller_868.radio->setBandwidth(250.0);
+        radio_controller_868.radio->setSyncWord(0x2B);
+        radio_controller_868.radio->setPreambleLength(16);
+        radio_controller_868.radio->setCodingRate(5);
+        radio_controller_868.radio->setCRC(true);
+        radio_controller_868.radio->autoLDRO();
+        radio_controller_868.radio->setOutputPower(10);
 
-        radio_868->setPacketReceivedAction(setFlag868); // Callback nutzen
+        radio_controller_868.radio->setPacketReceivedAction(setFlag868); // Callback nutzen
     } else {
-        radio_health_868 = RADIO_HEALTH_FAILED;
+        radio_controller_868.health = RADIO_HEALTH_FAILED;
         printf("[868] Init FEHLGESCHLAGEN: %d\n", state_868);
     }
 
     LED_868(0);
 
-    if (radio_health_is_ready(radio_health_433))
-        radio_433->startReceive();
+    if (radio_controller_ready(&radio_controller_433))
+        radio_controller_433.radio->startReceive();
     else
         printf("[433] RX nicht gestartet: %s\n",
-               radio_health_name(radio_health_433));
+               radio_health_name(radio_controller_433.health));
 
-    if (radio_health_is_ready(radio_health_868))
-        radio_868->startReceive();
+    if (radio_controller_ready(&radio_controller_868))
+        radio_controller_868.radio->startReceive();
     else
         printf("[868] RX nicht gestartet: %s\n",
-               radio_health_name(radio_health_868));
-
-    daemon_radio_controller_sync_legacy_state();
+               radio_health_name(radio_controller_868.health));
 
     fflush(stdout);
 }
@@ -817,19 +684,6 @@ static void daemon_radio_io_init(void)
 
     daemon_radio_controller_init();
 
-    radio_channel_runtime_init(&runtime_433,
-                               &mode_433,
-                               &receivedFlag433,
-                               &txBusy433,
-                               &cad433_active,
-                               &getrssi_433_active);
-    radio_channel_runtime_init(&runtime_868,
-                               &mode_868,
-                               &receivedFlag868,
-                               &txBusy868,
-                               &cad868_active,
-                               &getrssi_868_active);
-
     LED_init();
     lora_init();
 }
@@ -850,8 +704,8 @@ static int data_tx_modem_status(int band)
         return 0;
 
     return (band == 433)
-        ? radio_433->getModemStatus()
-        : radio_868->getModemStatus();
+        ? radio_controller_433.radio->getModemStatus()
+        : radio_controller_868.radio->getModemStatus();
 }
 
 static void data_tx_led(int band, int state)
@@ -1023,8 +877,6 @@ static void daemon_process_ready_sockets(ConfigDispatchContext<SX1278> *config_4
                           readfds, send_data_chunk, data_tx_868_ctx);
 
     process_config_dispatch(config_433_ctx, config_868_ctx, readfds, buf);
-    daemon_radio_controller_sync_config_to_legacy_state();
-
     radio_channel_flush_ready(&channel_433, readfds);
     radio_channel_flush_ready(&channel_868, readfds);
 }
@@ -1135,13 +987,9 @@ static void daemon_process_rssi_stream(DaemonDeadlineTimer *rssi_timer)
 /* --- CAD/RSSI polling ---------------------------------------------------- */
 static void daemon_process_cad_rssi(DaemonDeadlineTimer *rssi_timer)
 {
-    daemon_radio_controller_sync_rx_tx_from_legacy_state();
-
     daemon_process_cad_status(&radio_controller_433, &channel_433);
     daemon_process_cad_status(&radio_controller_868, &channel_868);
     daemon_process_rssi_stream(rssi_timer);
-
-    daemon_radio_controller_sync_cad_rssi_to_legacy_state();
 }
 
 /* --- Main loop logging --------------------------------------------------- */
@@ -1411,12 +1259,8 @@ static void daemon_process_radio_polling(DaemonDeadlineTimer *rssi_timer,
                                          uint8_t (&rx_buf_433)[buf_SIZE],
                                          uint8_t (&rx_buf_868)[buf_SIZE])
 {
-    daemon_radio_controller_sync_rx_tx_from_legacy_state();
-
     daemon_process_radio_433(rx_buf_433);
     daemon_process_radio_868(rx_buf_868);
-
-    daemon_radio_controller_sync_rx_to_legacy_state();
 
     // --- CAD/RSSI Überwachung ---
     daemon_process_cad_rssi(rssi_timer);

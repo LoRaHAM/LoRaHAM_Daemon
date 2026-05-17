@@ -37,7 +37,6 @@ require "ctrl->radio->setPacketReceivedAction(ctrl->rx_callback)" "TX callback r
 require "ctrl->radio->startReceive" "TX RX restart through controller radio"
 require "ctrl->tx_busy = true" "TX busy set on controller"
 require "ctrl->tx_busy = false" "TX busy clear on controller"
-require "daemon_radio_controller_sync_tx_to_legacy_state()" "TX legacy mirror"
 require "ctrl->received = false" "TX received flag clear on controller"
 require "ctrl->mode == RADIO_MODE_LORA" "TX mode through controller"
 require "ctrl->band == RADIO_BAND_433" "TX band-specific behavior through controller"

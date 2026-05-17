@@ -1,6 +1,7 @@
 # LoRaHAM_Daemon
 
 ## Changelog
+- Refactor: Legacy-Radio-Globals und Kompatibilitäts-Spiegelung entfernt.
 - Refactor: TX-Sendepfad nutzt den RadioController; lora_send bleibt als Wrapper erhalten.
 - Refactor: RX-Paketpfad nutzt den RadioController mit Legacy-Spiegelung.
 - Refactor: CAD- und RSSI-Polling nutzen den RadioController mit Legacy-Spiegelung.

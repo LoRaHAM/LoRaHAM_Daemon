@@ -32,8 +32,6 @@ forbid() {
 require "daemon_process_radio_band(&radio_controller_433, &channel_433" "433 RX controller call"
 require "daemon_process_radio_band(&radio_controller_868, &channel_868" "868 RX controller call"
 require "client_slot_broadcast_bytes_queued(io->data_slots" "RX data broadcast via RadioChannelIo"
-require "daemon_radio_controller_sync_rx_tx_from_legacy_state()" "RX/TX compatibility sync before RX"
-require "daemon_radio_controller_sync_rx_to_legacy_state()" "RX compatibility mirror after RX"
 require "ctrl->radio->readData" "RX read through controller radio"
 require "ctrl->radio->getPacketLength" "RX packet length through controller radio"
 require "ctrl->radio->clearIrq" "RX IRQ clear through controller radio"
