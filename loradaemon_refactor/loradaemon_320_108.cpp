@@ -1265,6 +1265,14 @@ static int data_tx_modem_status(int band)
         : radio_868->getModemStatus();
 }
 
+static void data_tx_led(int band, int state)
+{
+    if (band == 433)
+        LED_433(state);
+    else
+        LED_868(state);
+}
+
 static int data_tx_wait_channel_free(DataTxDaemonContext *tx)
 {
     int cad_wait = 0;
@@ -1295,17 +1303,9 @@ static int send_data_chunk(uint8_t *chunk, size_t len, size_t offset, void *ctx)
 
     printf("  -> Sende Chunk: %zu Bytes (Offset: %zu)\n", len, offset);
 
-    if (tx->band == 433)
-        LED_433(1);
-    else
-        LED_868(1);
-
+    data_tx_led(tx->band, 1);
     lora_send(chunk, len, tx->band);
-
-    if (tx->band == 433)
-        LED_433(0);
-    else
-        LED_868(0);
+    data_tx_led(tx->band, 0);
 
     return 0;
 }
