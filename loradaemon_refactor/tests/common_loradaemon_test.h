@@ -440,6 +440,90 @@ static TEST_UNUSED int daemon_alive(void)
     return kill(g_daemon_pid, 0) == 0;
 }
 
+static TEST_UNUSED int wait_owned_daemon_exit(int timeout_ms)
+{
+    int status;
+    long deadline = now_ms() + timeout_ms;
+
+    while (now_ms() < deadline) {
+        pid_t r;
+
+        if (g_daemon_pid <= 0)
+            return TEST_PASS;
+
+        r = waitpid(g_daemon_pid, &status, WNOHANG);
+        if (r == g_daemon_pid) {
+            g_daemon_pid = -1;
+            return TEST_PASS;
+        }
+
+        usleep(100000);
+    }
+
+    return TEST_FAIL;
+}
+
+static TEST_UNUSED int public_sockets_removed(void)
+{
+    const char *paths[] = {
+        SOCK_DATA_433,
+        SOCK_DATA_868,
+        SOCK_CONF_433,
+        SOCK_CONF_868
+    };
+
+    for (int i = 0; i < ARRAY_LEN(paths); i++) {
+        if (path_exists(paths[i])) {
+            fail_msg("socket still exists after shutdown: %s", paths[i]);
+            return TEST_FAIL;
+        }
+    }
+
+    return TEST_PASS;
+}
+
+static TEST_UNUSED int wait_client_closed_after_shutdown(int fd, int timeout_ms)
+{
+    long deadline = now_ms() + timeout_ms;
+
+    while (now_ms() < deadline) {
+        struct pollfd pfd;
+        char buf[8];
+        int remaining = (int)(deadline - now_ms());
+        int pr;
+
+        if (remaining < 1)
+            remaining = 1;
+
+        pfd.fd = fd;
+        pfd.events = POLLIN;
+        pfd.revents = 0;
+
+        pr = poll(&pfd, 1, remaining);
+        if (pr < 0) {
+            if (errno == EINTR)
+                continue;
+            return TEST_FAIL;
+        }
+
+        if (pr == 0)
+            continue;
+
+        if (pfd.revents & (POLLHUP | POLLERR | POLLNVAL))
+            return TEST_PASS;
+
+        if (pfd.revents & POLLIN) {
+            ssize_t n = read(fd, buf, sizeof(buf));
+            if (n == 0)
+                return TEST_PASS;
+            if (n < 0 && errno != EINTR)
+                return TEST_PASS;
+        }
+    }
+
+    return TEST_FAIL;
+}
+
 /* --- CLI smoke helper --- */
 
 static TEST_UNUSED int test_cli_invalid_option(const char *bin)
