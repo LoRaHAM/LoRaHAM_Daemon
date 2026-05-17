@@ -1,6 +1,7 @@
 # LoRaHAM_Daemon
 
 ## Changelog
+- Funktion: Startup- und Lifecycle-Pfad um kurze Verbose/Debug-Logs ergänzt.
 - Funktion: CLI-Schalter -v/--verbose und --debug mit zentralen Log-Helfern ergänzt.
 - Refactor: LED-Schaltung erfolgt in Radio-Flows über den RadioController.
 - Refactor: RadioController nutzt std::unique_ptr für RadioLib-Objektbesitz.

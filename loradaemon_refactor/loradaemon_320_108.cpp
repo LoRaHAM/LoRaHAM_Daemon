@@ -248,9 +248,12 @@ static void daemon_radio_shutdown_cleanup(void);
 
 static void daemon_shutdown_cleanup(EventLoopSet *event_set)
 {
+    daemon_debug("Stoppe Funkmodule");
     daemon_radio_shutdown_cleanup();
 
+    daemon_debug("Schließe Event-Backend");
     event_loop_close(event_set);
+    daemon_debug("Schließe Clients");
     client_slot_close_all(client_data433_slots, MAX_CLIENTS);
     client_slot_close_all(client_data868_slots, MAX_CLIENTS);
     client_slot_close_all(client_conf433_slots, MAX_CLIENTS);
@@ -260,6 +263,8 @@ static void daemon_shutdown_cleanup(EventLoopSet *event_set)
     close_unix_socket(&data868_fd, DATA868_SOCKET);
     close_unix_socket(&conf433_fd, CONF433_SOCKET);
     close_unix_socket(&conf868_fd, CONF868_SOCKET);
+    daemon_debug("Entferne Socket-Dateien");
+
 }
 
 static int daemon_wait_for_events(EventLoopSet *event_set,
@@ -306,6 +311,8 @@ static void daemon_enter_background(void)
     freopen("/dev/null", "r", stdin);
     freopen("/tmp/lora_daemon.log", "w", stdout); // Optional: In Datei loggen
     freopen("/tmp/lora_daemon.log", "w", stderr);
+
+    daemon_verbose("Daemon-Modus aktiv");
 }
 /* --- Radio controller state ---------------------------------------------- */
 
@@ -970,8 +977,10 @@ typedef struct {
 
 static void daemon_main_context_init(DaemonMainContext *ctx)
 {
+    daemon_debug("Initialisiere Laufzeitkontext");
     daemon_runtime_init(&ctx->event_set);
     daemon_loop_context_init(&ctx->loop_ctx);
+    daemon_debug("Laufzeitkontext bereit");
 }
 /* --- CONFIG dispatch ----------------------------------------------------- */
 static void process_config_dispatch(ConfigDispatchContext<SX1278> *config_433_ctx,
@@ -1418,6 +1427,7 @@ static void daemon_process_loop_iteration(EventLoopSet *event_set,
 static void daemon_run_polling_loop(DaemonMainContext *ctx)
 {
     daemon_log_loop_start();
+    daemon_verbose("Polling aktiv");
 
     while (!daemon_lifecycle_stop_requested()) {
         daemon_process_loop_iteration(&ctx->event_set,
@@ -1437,8 +1447,10 @@ static void daemon_run(void)
 
     daemon_run_polling_loop(&main_ctx);
 
-    printf("[Daemon] Stop requested\n");
+    daemon_log("Stop angefordert");
+    daemon_verbose("Shutdown beginnt");
     daemon_shutdown_cleanup(&main_ctx.event_set);
+    daemon_debug("Shutdown abgeschlossen");
 }
 
 /* --- Startup helpers ----------------------------------------------------- */
@@ -1446,6 +1458,7 @@ static void daemon_ignore_sigpipe(void)
 {
     // SIGPIPE ignorieren: write() auf geschlossenen Socket crasht sonst den Daemon
     signal(SIGPIPE, SIG_IGN);
+    daemon_debug("SIGPIPE wird ignoriert");
 }
 
 static void daemon_print_usage(const char *argv0)
@@ -1469,13 +1482,16 @@ static bool daemon_parse_args(int argc, char *argv[])
         switch (opt) {
             case 'd':
                 is_daemon = true;
+                daemon_debug("Option -d erkannt");
                 break;
             case 'v':
                 if (daemon_log_level < DAEMON_LOG_VERBOSE)
                     daemon_log_level = DAEMON_LOG_VERBOSE;
+                daemon_verbose("Verbose aktiv");
                 break;
             case 1000:
                 daemon_log_level = DAEMON_LOG_DEBUG;
+                daemon_debug("Debug aktiv");
                 break;
             case 'h':
                 daemon_print_usage(argv[0]);
@@ -1495,11 +1511,16 @@ static void daemon_startup_sequence(int argc, char *argv[])
     daemon_ignore_sigpipe();
     bool is_daemon = daemon_parse_args(argc, argv);
 
+    daemon_verbose("Startmodus: %s", is_daemon ? "Daemon" : "Vordergrund");
+    daemon_debug("Argumente verarbeitet");
+
     // --- Userspace-Daemon Implementation ---
     if (is_daemon)
         daemon_enter_background();
 
+    daemon_debug("Starte Radio- und Socket-Init");
     daemon_radio_io_init();
+    daemon_debug("Startup abgeschlossen");
 }
 
 /* --- Main entry ---------------------------------------------------------- */
