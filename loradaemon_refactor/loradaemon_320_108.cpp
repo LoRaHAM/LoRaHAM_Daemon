@@ -1310,6 +1310,39 @@ static int send_data_chunk(uint8_t *chunk, size_t len, size_t offset, void *ctx)
     return 0;
 }
 
+/* --- Config client handling --- */
+
+template<typename RadioT>
+static void process_config_client(int *clients,
+                                  int index,
+                                  const fd_set *readfds,
+                                  uint8_t *buf,
+                                  RadioT& radio,
+                                  const char *tag,
+                                  const char *prefix,
+                                  volatile RadioMode_t& mode,
+                                  volatile bool& getrssi_active,
+                                  void (*rx_callback)(void))
+{
+    if(!client_set_slot_ready(clients, index, readfds))
+        return;
+
+    ssize_t n = client_set_read_slot(clients, index, buf, buf_SIZE-1);
+    if(n <= 0)
+        return;
+
+    buf[n] = '\0';
+
+    if(prefix)
+        printf("%s", prefix);
+
+    parse_and_apply_config_generic<RadioT>(radio, tag, (char*)buf, mode, getrssi_active);
+
+    // beginFSK()/begin() loescht den IRQ-Callback.
+    radio.setPacketReceivedAction(rx_callback);
+    radio.startReceive();
+}
+
 // --- Unix socket setup moved to unix_socket.cpp ---
 
 int main(int argc, char *argv[]) {
@@ -1435,40 +1468,13 @@ int main(int argc, char *argv[]) {
                                                 &readfds, send_data_chunk, &data_tx_868_ctx);
 
                         // --- CONFIG Clients bearbeiten ---
-                        // parse_config kann hier eingefügt werden
                         for(int i=0;i<MAX_CLIENTS;i++){
-                            if(client_set_slot_ready(client_conf433, i, &readfds)){
-                                ssize_t n = client_set_read_slot(client_conf433, i, buf, buf_SIZE-1);
-                                if(n > 0) {
-                                    buf[n]='\0';
-                                    printf("[CONF433]");
-                                    parse_and_apply_config_generic<SX1278>(*radio_433, "CONF 433", (char*)buf, mode_433, getrssi_433_active);
-                                    // Callback nach jedem Konfig-Wechsel neu setzen:
-                                    // beginFSK() / begin() löscht den IRQ-Callback im Modul!
-                                    radio_433->setPacketReceivedAction(setFlag433);
-                                    radio_433->startReceive();
-                                    //printf("/n");
-                                    // AUTO-TEST: Wenn SF=12 und Freq=433.775, sende TEST
-
-                                    /*
-                                     *                    printf("[AUTO-TEST] Sende 'TEST-12' auf 433.775...\n");
-                                     *                    uint8_t test_msg[] = "TEST-12";
-                                     *                    lora_send(test_msg, 7, 433);
-                                     *                    printf("[AUTO-TEST] Fertig!\n");
-                                     */
-                                }
-                            }
-                            if(client_set_slot_ready(client_conf868, i, &readfds)){
-                                ssize_t n = client_set_read_slot(client_conf868, i, buf, buf_SIZE-1);
-                                if(n > 0) {
-                                    buf[n]='\0';
-                                    parse_and_apply_config_generic<RFM95>(*radio_868, "CONF 868", (char*)buf, mode_868, getrssi_868_active);
-                                    // Callback nach jedem Konfig-Wechsel neu setzen:
-                                    // beginFSK() / begin() löscht den IRQ-Callback im Modul!
-                                    radio_868->setPacketReceivedAction(setFlag868);
-                                    radio_868->startReceive();
-                                }
-                            }
+                            process_config_client<SX1278>(client_conf433, i, &readfds, buf,
+                                                          *radio_433, "CONF 433", "[CONF433]",
+                                                          mode_433, getrssi_433_active, setFlag433);
+                            process_config_client<RFM95>(client_conf868, i, &readfds, buf,
+                                                         *radio_868, "CONF 868", NULL,
+                                                         mode_868, getrssi_868_active, setFlag868);
                         }
 
 
