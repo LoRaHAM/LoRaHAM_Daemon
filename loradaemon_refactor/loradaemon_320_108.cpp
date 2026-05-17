@@ -1141,6 +1141,18 @@ void parse_and_apply_config_generic(RadioT &radio, const char *tag, const char *
     printf("\n");
 }
 
+/* --- CONFIG apply boundary --- */
+
+template<typename RadioT>
+static void config_apply_command(RadioT& radio,
+                                 const char *tag,
+                                 const char *cmd,
+                                 volatile RadioMode_t& mode,
+                                 volatile bool& getrssi_active)
+{
+    parse_and_apply_config_generic<RadioT>(radio, tag, cmd, mode, getrssi_active);
+}
+
 
 // --- Init LoRa ---
 void lora_init() {
@@ -1428,7 +1440,7 @@ int main(int argc, char *argv[]) {
         "[CONF433]",
         &mode_433,
         &getrssi_433_active,
-        parse_and_apply_config_generic<SX1278>,
+        config_apply_command<SX1278>,
         setFlag433
     };
     ConfigDispatchContext<RFM95> config_868_ctx = {
@@ -1438,7 +1450,7 @@ int main(int argc, char *argv[]) {
         NULL,
         &mode_868,
         &getrssi_868_active,
-        parse_and_apply_config_generic<RFM95>,
+        config_apply_command<RFM95>,
         setFlag868
     };
 
