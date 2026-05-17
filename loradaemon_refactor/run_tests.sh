@@ -87,6 +87,7 @@ tests=(
   "$TEST_DIR/check_radio_init_shutdown_logging.sh"
   "$TEST_DIR/check_socket_client_logging.sh"
   "$TEST_DIR/check_config_context_logging.sh"
+  "$TEST_DIR/check_data_tx_context_logging.sh"
   "$TEST_DIR/test_rf_packet"
   "$TEST_DIR/test_event_loop"
   "$TEST_DIR/test_daemon_timing"

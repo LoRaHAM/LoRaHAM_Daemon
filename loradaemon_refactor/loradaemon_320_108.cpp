@@ -885,7 +885,23 @@ static void daemon_radio_io_init(void)
 template<typename RadioT>
 struct DataTxDaemonContext {
     RadioController<RadioT> *ctrl;
+    const char *log_ctx;
 };
+
+static void daemon_data_tx_trace_message(void *ctx, const char *msg)
+{
+    daemon_debug_ctx((const char *)ctx, "%s", msg);
+}
+
+static DataTxLog daemon_data_tx_log(const char *ctx)
+{
+    DataTxLog log = {
+        (void *)ctx,
+        daemon_data_tx_trace_message
+    };
+
+    return log;
+}
 
 #define DATA_TX_CAD_MAX_WAIT_TICKS 300
 #define DATA_TX_CAD_SLEEP_USEC 10000
@@ -932,30 +948,37 @@ static int send_data_chunk(uint8_t *chunk, size_t len, size_t offset, void *ctx)
     int band = radio_controller_band_number(ctrl);
 
     if (!radio_controller_ready(ctrl)) {
+        daemon_debug_ctx(tx->log_ctx, "Radio nicht bereit");
         printf("[%s] DATA-TX abgebrochen: RADIO_NOT_READY\n", tag);
         return 1;
     }
 
     // CAD guard: LoRa only.
+    if (ctrl->mode == RADIO_MODE_LORA)
+        daemon_debug_ctx(tx->log_ctx, "CAD prüfen");
+
     if (data_tx_wait_channel_free(tx)) {
+        daemon_debug_ctx(tx->log_ctx, "CAD Timeout");
         printf("[%s] CAD-Timeout: Kanal dauerhaft belegt, Paket verworfen\n", tag);
         printf("[%s] DATA-TX abgebrochen: %s\n", tag,
                tx_result_name(TX_RESULT_CAD_TIMEOUT));
         return 1;
     }
 
-    printf("  -> Sende Chunk: %zu Bytes (Offset: %zu)\n", len, offset);
+    daemon_debug_ctx(tx->log_ctx, "Chunk %zu Byte Offset %zu", len, offset);
 
     radio_controller_led(ctrl, 1);
     TxResult result = lora_send(chunk, len, band);
     radio_controller_led(ctrl, 0);
 
     if (!tx_result_is_ok(result)) {
+        daemon_debug_ctx(tx->log_ctx, "Abbruch: %s", tx_result_name(result));
         printf("[%s] DATA-TX abgebrochen: %s\n", tag,
                tx_result_name(result));
         return 1;
     }
 
+    daemon_debug_ctx(tx->log_ctx, "Chunk gesendet");
     return 0;
 }
 
@@ -965,8 +988,16 @@ static int send_data_chunk(uint8_t *chunk, size_t len, size_t offset, void *ctx)
 template<typename RadioT>
 static DataTxDaemonContext<RadioT> daemon_data_tx_context(RadioController<RadioT> *ctrl)
 {
+    const char *log_ctx = "TX?";
+
+    if (ctrl && ctrl->band == RADIO_BAND_433)
+        log_ctx = "TX433";
+    else if (ctrl && ctrl->band == RADIO_BAND_868)
+        log_ctx = "TX868";
+
     DataTxDaemonContext<RadioT> ctx = {
-        ctrl
+        ctrl,
+        log_ctx
     };
 
     return ctx;
@@ -1172,9 +1203,11 @@ static void daemon_process_ready_sockets(ConfigDispatchContext<SX1278> *config_4
     daemon_accept_channel_logged(&channel_868, readfds, "CLIENT868");
 
     data_tx_process_slots("433", client_data433_slots, MAX_CLIENTS,
-                          readfds, send_data_chunk<SX1278>, data_tx_433_ctx);
+                          readfds, send_data_chunk<SX1278>, data_tx_433_ctx,
+                          daemon_data_tx_log("TX433"));
     data_tx_process_slots("868", client_data868_slots, MAX_CLIENTS,
-                          readfds, send_data_chunk<RFM95>, data_tx_868_ctx);
+                          readfds, send_data_chunk<RFM95>, data_tx_868_ctx,
+                          daemon_data_tx_log("TX868"));
 
     process_config_dispatch(config_433_ctx, config_868_ctx, readfds, buf);
     daemon_flush_channel_logged(&channel_433, readfds, "CLIENT433");

@@ -46,8 +46,11 @@ void data_tx_process_slots(const char *tag,
                            int max_clients,
                            const EventLoopReadySet *readfds,
                            DataTxChunkHandler handler,
-                           void *ctx)
+                           void *ctx,
+                           DataTxLog log)
 {
+    (void)tag;
+
     if (!slots)
         return;
 
@@ -66,22 +69,22 @@ void data_tx_process_slots(const char *tag,
                 if(errno == EAGAIN || errno == EWOULDBLOCK)
                     continue;
 
+                data_tx_log_message(&log, "Lesefehler, Client zu");
                 client_slot_close(slot);
                 continue;
             }
 
             if(n == 0) {
+                data_tx_log_message(&log, "EOF, Client zu");
                 client_slot_close(slot);
                 continue;
             }
 
-            printf("[DEBUG %s] %zd Bytes vom Socket erhalten. Zerteile in LoRa-Pakete...\n", tag, n);
+            data_tx_log_bytes(&log, n);
 
             size_t processed = data_tx_for_each_chunk(large_buf, (size_t)n, handler, ctx);
-            if (processed < (size_t)n) {
-                printf("[DEBUG %s] DATA-TX aborted after %zu/%zd bytes\n",
-                       tag, processed, n);
-            }
+            if (processed < (size_t)n)
+                data_tx_log_processed(&log, processed, n);
         }
     }
 }

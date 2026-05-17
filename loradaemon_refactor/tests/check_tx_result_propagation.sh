@@ -30,7 +30,7 @@ if ! grep -q 'DATA-TX abgebrochen' "$DAEMON"; then
   rc=1
 fi
 
-if ! grep -q 'DATA-TX aborted after' "$DATA_TX"; then
+if ! grep -q 'data_tx_log_processed(&log, processed, n);' "$DATA_TX"; then
   echo "ERROR: data_tx does not log aborted chunk processing." >&2
   rc=1
 fi

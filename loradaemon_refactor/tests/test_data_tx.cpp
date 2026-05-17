@@ -60,6 +60,17 @@ typedef struct {
     size_t offsets[4];
 } ChunkRecorder;
 
+
+static DataTxLog null_data_tx_log(void)
+{
+    DataTxLog log = {
+        NULL,
+        NULL
+    };
+
+    return log;
+}
+
 static int record_chunk(uint8_t *chunk, size_t len, size_t offset, void *ctx)
 {
     ChunkRecorder *rec = (ChunkRecorder *)ctx;
@@ -153,7 +164,8 @@ static void test_process_slots_epoll(void)
     event_loop_add_fd(&set, slots[0].fd);
     expect_int(name, event_loop_wait(&set, &ready, 100000), 1);
 
-    data_tx_process_slots(name, slots, 2, &ready, record_chunk, &rec);
+    data_tx_process_slots(name, slots, 2, &ready, record_chunk, &rec,
+                          null_data_tx_log());
 
     expect_int("process slots call count", rec.calls, 2);
     expect_size("process slots first chunk", rec.sizes[0], 255);
@@ -207,7 +219,8 @@ static void test_process_slots_abort_on_handler_error(void)
     event_loop_add_fd(&set, slots[0].fd);
     expect_int(name, event_loop_wait(&set, &ready, 100000), 1);
 
-    data_tx_process_slots(name, slots, 2, &ready, stop_on_second_chunk, &rec);
+    data_tx_process_slots(name, slots, 2, &ready, stop_on_second_chunk, &rec,
+                          null_data_tx_log());
 
     expect_int("process abort call count", rec.calls, 2);
     expect_size("process abort first chunk", rec.sizes[0], 255);
@@ -254,7 +267,8 @@ static void test_process_slots_eof_closes_and_resets_output(void)
     event_loop_add_fd(&set, slots[0].fd);
     expect_int("slot eof wait", event_loop_wait(&set, &ready, 100000), 1);
 
-    data_tx_process_slots("TEST", slots, 1, &ready, record_chunk, &rec);
+    data_tx_process_slots("TEST", slots, 1, &ready, record_chunk, &rec,
+                          null_data_tx_log());
 
     expect_int("slot eof no chunks", rec.calls, 0);
     expect_int("slot eof client closed", slots[0].fd, 0);
