@@ -1,5 +1,4 @@
-/******************************************************************************
- * Copyright (C) 2026  [LoRaHAM / Alexander Walter]
+/****************************************************************************** * Copyright (C) 2026  [LoRaHAM / Alexander Walter]
  * * LICENSE: GNU General Public License v3 (GPLv3) with the following terms:
  * 1. PRIVATE/HOBBY: Free use, modification, and redistribution for non-commercial
  * purposes is permitted.
@@ -889,15 +888,8 @@ int main(int argc, char *argv[]) {
 
     EventLoopReadySet readfds;
     uint8_t buf[buf_SIZE];
-    uint8_t tx_buf[buf_SIZE];  // ← NEU: nur zum Senden
     uint8_t rx_buf_433[buf_SIZE];  // ← GETRENNTE Buffer pro Band!
     uint8_t rx_buf_868[buf_SIZE];  // ← GETRENNTE Buffer pro Band!
-    uint8_t len_buf;           // ← NEU!
-
-    uint8_t len;
-    // --- CAD-Polling-Steuerung: alterniert zwischen 433 und 868 ---
-    int cad_counter = 0;
-    int cad_band    = 0;   // 0 = nächster CAD-Scan für 433, 1 = für 868
 
     // --- GETRSSI Timer ---
     DaemonDeadlineTimer rssi_timer;
