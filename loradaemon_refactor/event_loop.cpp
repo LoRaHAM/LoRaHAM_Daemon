@@ -38,7 +38,12 @@ EventLoopBackend event_loop_backend(const EventLoopSet *set)
 
 void event_loop_reset(EventLoopSet *set)
 {
-    event_loop_init_select(set);
+    if (set->backend == EVENT_LOOP_BACKEND_EPOLL) {
+        event_loop_epoll_reset(&set->epoll_backend);
+        return;
+    }
+
+    event_loop_select_reset(&set->select_backend);
 }
 
 void event_loop_add_fd(EventLoopSet *set, int fd)

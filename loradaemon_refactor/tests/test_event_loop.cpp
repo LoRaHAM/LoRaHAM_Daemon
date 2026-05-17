@@ -230,6 +230,58 @@ static void test_backend_selection(void)
                event_loop_has_registered_fds(&set), 0);
 }
 
+
+static void test_backend_reset_preserves_epoll(void)
+{
+    EventLoopSet set;
+    int fds[2];
+
+    if (pipe(fds) != 0) {
+        g_fail++;
+        printf("[FAIL] reset epoll pipe setup\n");
+        return;
+    }
+
+    if (event_loop_init_epoll(&set) != 0) {
+        close(fds[0]);
+        close(fds[1]);
+        g_fail++;
+        printf("[FAIL] reset epoll init\n");
+        return;
+    }
+
+    event_loop_add_fd(&set, fds[0]);
+    expect_int("reset epoll has registered fds before reset",
+               event_loop_has_registered_fds(&set), 1);
+
+    event_loop_reset(&set);
+
+    expect_int("reset preserves epoll backend",
+               event_loop_backend(&set) == EVENT_LOOP_BACKEND_EPOLL, 1);
+    expect_int("reset epoll clears registered fds",
+               event_loop_has_registered_fds(&set), 0);
+
+    event_loop_close(&set);
+    close(fds[0]);
+    close(fds[1]);
+}
+
+static void test_backend_reset_preserves_select(void)
+{
+    EventLoopSet set;
+
+    event_loop_init_select(&set);
+    event_loop_add_fd(&set, 5);
+    expect_int("reset select has registered fds before reset",
+               event_loop_has_registered_fds(&set), 1);
+
+    event_loop_reset(&set);
+
+    expect_int("reset preserves select backend",
+               event_loop_backend(&set) == EVENT_LOOP_BACKEND_SELECT, 1);
+    expect_int("reset select clears registered fds",
+               event_loop_has_registered_fds(&set), 0);
+}
 static void test_backend_neutral_aliases(void)
 {
     EventLoopSet set;
@@ -347,6 +399,8 @@ int main(int argc, char **argv)
     test_epoll_wait_readable_pipe();
     test_epoll_wait_timeout();
     test_backend_selection();
+    test_backend_reset_preserves_select();
+    test_backend_reset_preserves_epoll();
     test_backend_neutral_aliases();
     test_backend_neutral_wait_readable_pipe();
     test_backend_neutral_epoll_wait_readable_pipe();
