@@ -389,37 +389,57 @@ static void radio_controller_flash_led(RadioController<RadioT> *ctrl)
 
 static void daemon_radio_controller_init(void)
 {
+    daemon_debug_ctx("RADIO", "Controller initialisieren");
+
     radio_controller_init(&radio_controller_433,
                           RADIO_BAND_433,
                           "433",
                           false,
                           setFlag433,
                           PIN_433);
+    daemon_debug_band("433", "Controller bereit");
+
     radio_controller_init(&radio_controller_868,
                           RADIO_BAND_868,
                           "868",
                           true,
                           setFlag868,
                           PIN_868);
+    daemon_debug_band("868", "Controller bereit");
 }
 
 template<typename RadioT>
 static void radio_controller_shutdown(RadioController<RadioT> *ctrl)
 {
+    const char *tag;
+
     if (!ctrl)
         return;
 
+    tag = radio_controller_tag(ctrl);
+    daemon_verbose_ctx(tag, "Radio-Shutdown");
+
     if (ctrl->radio) {
         if (radio_controller_ready(ctrl)) {
+            daemon_debug_band(tag, "Callback aus");
             ctrl->radio->clearPacketReceivedAction();
+            daemon_debug_band(tag, "Standby");
             ctrl->radio->standby();
+            daemon_debug_band(tag, "IRQ löschen");
             ctrl->radio->clearIrq(0xFFFFFFFF);
+        } else {
+            daemon_debug_band(tag, "Radio nicht bereit");
         }
 
+        daemon_debug_band(tag, "Radio freigeben");
         ctrl->radio.reset();
+    } else {
+        daemon_debug_band(tag, "Kein Radio-Objekt");
     }
 
+    daemon_debug_band(tag, "Modul freigeben");
     ctrl->mod.reset();
+    daemon_debug_band(tag, "HAL freigeben");
     ctrl->hal.reset();
 
     ctrl->health = RADIO_HEALTH_UNINITIALIZED;
@@ -428,11 +448,14 @@ static void radio_controller_shutdown(RadioController<RadioT> *ctrl)
     ctrl->cad_active = false;
     ctrl->getrssi_active = false;
     ctrl->rx_drops = 0;
+    daemon_debug_band(tag, "Zustand zurückgesetzt");
 }
 
 static void daemon_radio_shutdown_cleanup(void)
 {
+    daemon_debug_ctx("RADIO", "Shutdown 433");
     radio_controller_shutdown(&radio_controller_433);
+    daemon_debug_ctx("RADIO", "Shutdown 868");
     radio_controller_shutdown(&radio_controller_868);
 }
 
@@ -663,12 +686,15 @@ TxResult lora_send(uint8_t *buf, size_t len, int band) {
 // --- Init LoRa ---
 void lora_init() {
     printf("[Init] Starte Dualband LoRa Receiver (433 + 868)\n");
+    daemon_verbose_ctx("RADIO", "Funk-Init beginnt");
 
     radio_controller_433.health = RADIO_HEALTH_UNINITIALIZED;
     radio_controller_868.health = RADIO_HEALTH_UNINITIALIZED;
+    daemon_debug_ctx("RADIO", "Health zurückgesetzt");
 
     if (h < 0) {
         printf("[GPIO] Fehler: gpiochip0 konnte nicht geöffnet werden!\n");
+        daemon_debug_ctx("GPIO", "Nicht bereit");
         radio_controller_433.health = RADIO_HEALTH_FAILED;
         radio_controller_868.health = RADIO_HEALTH_FAILED;
         return;
@@ -676,18 +702,22 @@ void lora_init() {
 
     radio_controller_led(&radio_controller_433, 1);
 
+    daemon_debug_band("433", "Objekte anlegen");
     radio_controller_433.hal.reset(new PiHal(0));
     radio_controller_433.mod.reset(new Module(radio_controller_433.hal.get(), 8, 25, 5, 24));
     radio_controller_433.radio.reset(new SX1278(radio_controller_433.mod.get()));
 
+    daemon_debug_band("868", "Objekte anlegen");
     radio_controller_868.hal.reset(new PiHal(0));
     radio_controller_868.mod.reset(new Module(radio_controller_868.hal.get(), 7, 16, 6, 12));
     radio_controller_868.radio.reset(new RFM95(radio_controller_868.mod.get()));
 
+    daemon_debug_band("433", "begin()");
     int state_433 = radio_controller_433.radio->begin();
     if (state_433 == RADIOLIB_ERR_NONE) {
         radio_controller_433.health = RADIO_HEALTH_READY;
         printf("[433] Init OK\n");
+        daemon_verbose_ctx("433", "Radio bereit");
 
         // LoRa-APRS:
         radio_controller_433.radio->setFrequency(433.900);
@@ -741,20 +771,25 @@ void lora_init() {
          *    //radio_controller_433.radio->autoLDRO();
          *    radio_controller_433.radio->setOutputPower(10);
          */
+        daemon_debug_band("433", "LoRa-Default gesetzt");
         radio_controller_433.radio->setPacketReceivedAction(setFlag433); // Callback nutzen
+        daemon_debug_band("433", "Callback gesetzt");
     } else {
         radio_controller_433.health = RADIO_HEALTH_FAILED;
         printf("[433] Init FEHLGESCHLAGEN: %d\n", state_433);
+        daemon_debug_band("433", "begin() Fehler %d", state_433);
     }
 
     LED_433(0);
 
     LED_868(1);
 
+    daemon_debug_band("868", "begin()");
     int state_868 = radio_controller_868.radio->begin();
     if (state_868 == RADIOLIB_ERR_NONE) {
         radio_controller_868.health = RADIO_HEALTH_READY;
         printf("[868] Init OK\n");
+        daemon_verbose_ctx("868", "Radio bereit");
 
         radio_controller_868.radio->setFrequency(869.525);
         radio_controller_868.radio->setSpreadingFactor(11);
@@ -766,37 +801,49 @@ void lora_init() {
         radio_controller_868.radio->autoLDRO();
         radio_controller_868.radio->setOutputPower(10);
 
+        daemon_debug_band("868", "LoRa-Default gesetzt");
         radio_controller_868.radio->setPacketReceivedAction(setFlag868); // Callback nutzen
+        daemon_debug_band("868", "Callback gesetzt");
     } else {
         radio_controller_868.health = RADIO_HEALTH_FAILED;
         printf("[868] Init FEHLGESCHLAGEN: %d\n", state_868);
+        daemon_debug_band("868", "begin() Fehler %d", state_868);
     }
 
     LED_868(0);
 
-    if (radio_controller_ready(&radio_controller_433))
+    if (radio_controller_ready(&radio_controller_433)) {
+        daemon_debug_band("433", "RX starten");
         radio_controller_433.radio->startReceive();
-    else
+    } else {
         printf("[433] RX nicht gestartet: %s\n",
                radio_health_name(radio_controller_433.health));
+        daemon_debug_band("433", "RX Start übersprungen");
+    }
 
-    if (radio_controller_ready(&radio_controller_868))
+    if (radio_controller_ready(&radio_controller_868)) {
+        daemon_debug_band("868", "RX starten");
         radio_controller_868.radio->startReceive();
-    else
+    } else {
         printf("[868] RX nicht gestartet: %s\n",
                radio_health_name(radio_controller_868.health));
+        daemon_debug_band("868", "RX Start übersprungen");
+    }
 
+    daemon_verbose_ctx("RADIO", "Funk-Init abgeschlossen");
     fflush(stdout);
 }
 
 
 static void daemon_radio_io_init(void)
 {
+    daemon_debug_ctx("CLIENT", "Slots initialisieren");
     client_slot_init_all(client_data433_slots, MAX_CLIENTS);
     client_slot_init_all(client_data868_slots, MAX_CLIENTS);
     client_slot_init_all(client_conf433_slots, MAX_CLIENTS);
     client_slot_init_all(client_conf868_slots, MAX_CLIENTS);
 
+    daemon_debug_ctx("RADIO", "Kanal-IO initialisieren");
     radio_channel_io_init(&channel_433,
                           RADIO_BAND_433,
                           DATA433_SOCKET,
@@ -814,12 +861,16 @@ static void daemon_radio_io_init(void)
                           client_data868_slots,
                           client_conf868_slots);
 
+    daemon_debug_ctx("SOCKET", "Socket-Dateien öffnen");
     radio_channel_open_sockets(&channel_433);
     radio_channel_open_sockets(&channel_868);
 
     daemon_radio_controller_init();
 
+    daemon_debug_ctx("GPIO", "LED initialisieren");
     LED_init();
+
+    daemon_debug_ctx("RADIO", "RadioLib initialisieren");
     lora_init();
 }
 
