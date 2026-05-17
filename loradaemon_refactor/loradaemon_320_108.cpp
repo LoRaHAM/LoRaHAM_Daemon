@@ -1293,6 +1293,18 @@ static void daemon_run_polling_loop(DaemonMainContext *ctx)
     } // while stop not requested
 }
 
+/* --- Daemon run: context init, polling loop and shutdown ----------------- */
+static void daemon_run(void)
+{
+    DaemonMainContext main_ctx;
+    daemon_main_context_init(&main_ctx);
+
+    daemon_run_polling_loop(&main_ctx);
+
+    printf("[Daemon] Stop requested\n");
+    daemon_shutdown_cleanup(&main_ctx.event_set);
+}
+
 /* --- Startup helpers: signals and command-line parsing -------------------- */
 static void daemon_ignore_sigpipe(void)
 {
@@ -1338,14 +1350,7 @@ static void daemon_startup_sequence(int argc, char *argv[])
 
 int main(int argc, char *argv[]) {
     daemon_startup_sequence(argc, argv);
-
-    DaemonMainContext main_ctx;
-    daemon_main_context_init(&main_ctx);
-
-    daemon_run_polling_loop(&main_ctx);
-
-    printf("[Daemon] Stop requested\n");
-    daemon_shutdown_cleanup(&main_ctx.event_set);
+    daemon_run();
 
     return 0;
 }
