@@ -1,6 +1,7 @@
 # LoRaHAM_Daemon
 
 ## Changelog
+- Refactor: TX-Sendepfad nutzt den RadioController; lora_send bleibt als Wrapper erhalten.
 - Refactor: RX-Paketpfad nutzt den RadioController mit Legacy-Spiegelung.
 - Refactor: CAD- und RSSI-Polling nutzen den RadioController mit Legacy-Spiegelung.
 - Refactor: DATA-TX-Kontext bezieht Band, Tag, Mode und Health aus dem RadioController.

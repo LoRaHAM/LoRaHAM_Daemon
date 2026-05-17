@@ -76,6 +76,7 @@ tests=(
   "$TEST_DIR/check_radio_health_guards.sh"
   "$TEST_DIR/check_radio_controller_cad_rssi.sh"
   "$TEST_DIR/check_radio_controller_rx_flow.sh"
+  "$TEST_DIR/check_radio_controller_tx_flow.sh"
   "$TEST_DIR/test_rf_packet"
   "$TEST_DIR/test_event_loop"
   "$TEST_DIR/test_daemon_timing"
