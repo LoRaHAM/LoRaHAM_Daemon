@@ -1310,6 +1310,17 @@ static int send_data_chunk(uint8_t *chunk, size_t len, size_t offset, void *ctx)
     return 0;
 }
 
+/* --- CONFIG dispatch wiring --- */
+
+static void process_config_dispatch(ConfigDispatchContext<SX1278> *config_433_ctx,
+                                    ConfigDispatchContext<RFM95> *config_868_ctx,
+                                    const fd_set *readfds,
+                                    uint8_t *buf)
+{
+    config_dispatch_context<SX1278>(config_433_ctx, MAX_CLIENTS, readfds, buf);
+    config_dispatch_context<RFM95>(config_868_ctx, MAX_CLIENTS, readfds, buf);
+}
+
 // --- Unix socket setup moved to unix_socket.cpp ---
 
 int main(int argc, char *argv[]) {
@@ -1457,8 +1468,7 @@ int main(int argc, char *argv[]) {
                                                 &readfds, send_data_chunk, &data_tx_868_ctx);
 
                         // --- CONFIG Clients bearbeiten ---
-                        config_dispatch_context<SX1278>(&config_433_ctx, MAX_CLIENTS, &readfds, buf);
-                        config_dispatch_context<RFM95>(&config_868_ctx, MAX_CLIENTS, &readfds, buf);
+                        process_config_dispatch(&config_433_ctx, &config_868_ctx, &readfds, buf);
 
 
 
