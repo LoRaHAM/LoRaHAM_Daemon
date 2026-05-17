@@ -76,7 +76,42 @@ tests=(
 overall_rc=0
 results=()
 
-for test_bin in "${tests[@]}"; do
+record_test_ok() {
+  local test_name="$1"
+
+  results+=("OK   $test_name")
+}
+
+record_test_fail() {
+  local test_name="$1"
+  local reason="$2"
+
+  results+=("FAIL $test_name $reason")
+  overall_rc=1
+}
+
+cleanup_lingering_daemon() {
+  local test_bin="$1"
+  local test_name="$2"
+
+  if pgrep -x loraham_daemon >/dev/null; then
+    echo "ERROR: loraham_daemon is still running after $test_bin"
+    pgrep -af loraham_daemon || true
+    pkill -TERM -x loraham_daemon 2>/dev/null || true
+    sleep 1
+    pkill -KILL -x loraham_daemon 2>/dev/null || true
+    record_test_fail "$test_name" "daemon-still-running"
+  fi
+}
+
+run_one_test() {
+  local test_bin="$1"
+  local test_name
+  local rc
+  local cmd
+
+  test_name="$(basename "$test_bin")"
+
   echo
   echo "================================================================"
   echo "Running: $test_bin"
@@ -89,24 +124,18 @@ for test_bin in "${tests[@]}"; do
   fi
 
   if "${cmd[@]}"; then
-    results+=("OK   $(basename "$test_bin")")
+    record_test_ok "$test_name"
   else
     rc=$?
-    results+=("FAIL $(basename "$test_bin") rc=$rc")
-    overall_rc=1
+    record_test_fail "$test_name" "rc=$rc"
   fi
 
   sleep 1
+  cleanup_lingering_daemon "$test_bin" "$test_name"
+}
 
-  if pgrep -x loraham_daemon >/dev/null; then
-    echo "ERROR: loraham_daemon is still running after $test_bin"
-    pgrep -af loraham_daemon || true
-    pkill -TERM -x loraham_daemon 2>/dev/null || true
-    sleep 1
-    pkill -KILL -x loraham_daemon 2>/dev/null || true
-    results+=("FAIL $(basename "$test_bin") daemon-still-running")
-    overall_rc=1
-  fi
+for test_bin in "${tests[@]}"; do
+  run_one_test "$test_bin"
 done
 
 echo
