@@ -74,8 +74,6 @@ void parse_and_apply_config_generic(RadioT &radio, const char *tag, const char *
         return;
     }
 
-
-
     bool printed = false;
 
     // --- 1. Pass: MODE= zuerst, GETRSSI= direkt, Rest sammeln ---

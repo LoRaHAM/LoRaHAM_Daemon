@@ -142,6 +142,7 @@
 #include "daemon_protocol.h"
 #include "daemon_timing.h"
 #include "daemon_lifecycle.h"
+#include "daemon_log.h"
 #include "data_tx.h"
 #include "tx_result.h"
 #include "radio_health.h"
@@ -171,84 +172,6 @@ ClientSlot client_conf868_slots[MAX_CLIENTS];
 RadioChannelIo channel_433;
 RadioChannelIo channel_868;
 
-/* --- Logging ------------------------------------------------------------- */
-typedef enum {
-    DAEMON_LOG_NORMAL = 0,
-    DAEMON_LOG_VERBOSE = 1,
-    DAEMON_LOG_DEBUG = 2
-} DaemonLogLevel;
-
-static DaemonLogLevel daemon_log_level = DAEMON_LOG_NORMAL;
-
-static bool daemon_verbose_enabled(void)
-{
-    return daemon_log_level >= DAEMON_LOG_VERBOSE;
-}
-
-static bool daemon_debug_enabled(void)
-{
-    return daemon_log_level >= DAEMON_LOG_DEBUG;
-}
-
-static void daemon_vlog(const char *prefix, const char *fmt, va_list ap)
-{
-    printf("%s ", prefix);
-    vprintf(fmt, ap);
-    printf("\n");
-}
-
-static void daemon_log(const char *fmt, ...)
-{
-    va_list ap;
-
-    va_start(ap, fmt);
-    daemon_vlog("[Daemon]", fmt, ap);
-    va_end(ap);
-}
-
-static void daemon_vlog_ctx(const char *ctx, const char *fmt, va_list ap)
-{
-    char prefix[32];
-
-    snprintf(prefix, sizeof(prefix), "[%s]", ctx ? ctx : "?");
-    daemon_vlog(prefix, fmt, ap);
-}
-
-static void daemon_verbose_ctx(const char *ctx, const char *fmt, ...)
-{
-    va_list ap;
-
-    if (!daemon_verbose_enabled())
-        return;
-
-    va_start(ap, fmt);
-    daemon_vlog_ctx(ctx, fmt, ap);
-    va_end(ap);
-}
-
-static void daemon_debug_ctx(const char *ctx, const char *fmt, ...)
-{
-    va_list ap;
-
-    if (!daemon_debug_enabled())
-        return;
-
-    va_start(ap, fmt);
-    daemon_vlog_ctx(ctx, fmt, ap);
-    va_end(ap);
-}
-
-static void daemon_debug_band(const char *tag, const char *fmt, ...)
-{
-    va_list ap;
-
-    if (!daemon_debug_enabled())
-        return;
-
-    va_start(ap, fmt);
-    daemon_vlog_ctx(tag, fmt, ap);
-    va_end(ap);
-}
 
 static void daemon_radio_shutdown_cleanup(void);
 
@@ -346,7 +269,6 @@ void LED_init() {
     h = lgGpiochipOpen(0);
     chip = h; // chip bekommt den Wert von h
 
-    chip = lgGpiochipOpen(0);
     if (chip < 0) {
         printf("Fehler: gpiochip0 konnte nicht geöffnet werden!\n");
         return;
@@ -1047,7 +969,6 @@ static ConfigDispatchContext<SX1278> daemon_config_433_context(void)
         client_conf433_slots,
         &radio_controller_433,
         "CONF433",
-        NULL,
         config_apply_command<SX1278>,
         daemon_config_log("CONFIG433")
     };
@@ -1061,7 +982,6 @@ static ConfigDispatchContext<RFM95> daemon_config_868_context(void)
         client_conf868_slots,
         &radio_controller_868,
         "CONF868",
-        NULL,
         config_apply_command<RFM95>,
         daemon_config_log("CONFIG868")
     };
@@ -1390,12 +1310,22 @@ static void daemon_discard_rx_during_tx(RadioController<RadioT> *ctrl)
 }
 
 /* --- RX output ----------------------------------------------------------- */
-static void daemon_print_hex_bytes(const uint8_t *buf, int len)
+static void daemon_debug_hex_bytes(const char *ctx, const uint8_t *buf, int len)
 {
+    char msg[512];
+    size_t pos = 0;
+
+    pos += snprintf(msg + pos, sizeof(msg) - pos, "HEX:");
     for (int i = 0; i < len; i++) {
-        printf("%02X ", buf[i]);
+        if (pos + 4 >= sizeof(msg)) {
+            snprintf(msg + pos, sizeof(msg) - pos, " ...");
+            break;
+        }
+
+        pos += snprintf(msg + pos, sizeof(msg) - pos, " %02X", buf[i]);
     }
-    printf("\n");
+
+    daemon_debug_ctx(ctx, "%s", msg);
 }
 
 static void daemon_print_ascii_bytes(const uint8_t *buf, int len)
@@ -1418,7 +1348,8 @@ static const char *daemon_controller_color(RadioController<RadioT> *ctrl)
     return "32m";
 }
 
-static void daemon_print_lora_packet(const char *band,
+static void daemon_print_lora_packet(const char *rx_ctx,
+                                     const char *band,
                                      const char *color,
                                      uint8_t *buf,
                                      int len,
@@ -1433,35 +1364,27 @@ static void daemon_print_lora_packet(const char *band,
     uint8_t nextHop      = buf[14];
     uint8_t rlyNodes     = buf[15];
 
-    printf("[\e[%s%s\e[0m] %d Bytes HEX from Node ", color, band, len);
-    printf("\e[%s%08X\e[0m to ", color, fromNode);
-    printf("\e[%s%08X\e[0m ID:", color, toNode);
-    printf("\e[%s%08X\e[0m", color, uniqueID);
+    daemon_debug_ctx(rx_ctx,
+                     "LoRa %d Byte from %08X to %08X ID:%08X Flag:%02X Hash:%02X Hop:%02X Node:%02X RSSI: %.2f dBm",
+                     len, fromNode, toNode, uniqueID,
+                     hdrFlags, chHash, nextHop, rlyNodes, rssi);
+    daemon_debug_hex_bytes(rx_ctx, buf, len);
 
-    printf(" Flag:\e[%s%02X\e[0m", color, hdrFlags);
-    printf(" Hash:\e[%s%02X\e[0m", color, chHash);
-    printf(" Hop:\e[%s%02X\e[0m", color, nextHop);
-    printf(" Node:\e[%s%02X\e[0m", color, rlyNodes);
-
-    printf("\n");
-
-    daemon_print_hex_bytes(buf, len);
-
-    printf("[\e[%s%s\e[0m] %d Bytes    : ", color, band, len);
+    printf("[\e[%s%s\e[0m] %d Bytes ASCII: ", color, band, len);
     daemon_print_ascii_bytes(buf, len);
     printf(" RSSI: %.2f dBm\n", rssi);
 }
 
-static void daemon_print_fsk_packet(const char *band,
+static void daemon_print_fsk_packet(const char *rx_ctx,
+                                    const char *band,
                                     const char *color,
                                     uint8_t *buf,
                                     int len,
                                     float rssi)
 {
-    printf("[\e[%s%s-FSK\e[0m] %d Bytes HEX: ", color, band, len);
-    daemon_print_hex_bytes(buf, len);
+    daemon_debug_hex_bytes(rx_ctx, buf, len);
 
-    printf("[\e[%s%s-FSK\e[0m] %d Bytes    : ", color, band, len);
+    printf("[\e[%s%s-FSK\e[0m] %d Bytes ASCII: ", color, band, len);
     daemon_print_ascii_bytes(buf, len);
     printf(" RSSI: %.2f dBm\n", rssi);
 }
@@ -1543,9 +1466,9 @@ static void daemon_print_rx_packet(RadioController<RadioT> *ctrl,
     float rssi = radio_controller_packet_rssi(ctrl);
 
     if (ctrl->mode == RADIO_MODE_LORA)
-        daemon_print_lora_packet(tag, color, buf, len, rssi);
+        daemon_print_lora_packet(daemon_rx_log_ctx(ctrl), tag, color, buf, len, rssi);
     else
-        daemon_print_fsk_packet(tag, color, buf, len, rssi);
+        daemon_print_fsk_packet(daemon_rx_log_ctx(ctrl), tag, color, buf, len, rssi);
 }
 
 /* --- RX radio accessors -------------------------------------------------- */

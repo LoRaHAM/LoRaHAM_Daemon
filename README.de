@@ -1,6 +1,7 @@
 # LoRaHAM_Daemon
 
 ## Changelog
+- Cleanup: Logging-Helfer, CONFIG-Kontext, GPIO-Init und RX-Ausgabe bereinigt.
 - Funktion: Erwartetes EINTR beim Shutdown aus der Standardausgabe entfernt.
 - Funktion: Standardausgabe für TX/CONFIG auf weniger Rauschen reduziert.
 - Funktion: RX/CAD/RSSI-Pfade um kurze Kontext-Debug-Logs ergänzt.

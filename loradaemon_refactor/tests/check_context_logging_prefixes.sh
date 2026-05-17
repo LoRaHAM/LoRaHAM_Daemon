@@ -4,6 +4,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 REFACTOR_DIR="$(cd -- "$SCRIPT_DIR/.." && pwd)"
 DAEMON="$REFACTOR_DIR/loradaemon_320_108.cpp"
+LOG_H="$REFACTOR_DIR/daemon_log.h"
 
 rc=0
 
@@ -13,7 +14,7 @@ require() {
   local pattern="$1"
   local label="$2"
 
-  if ! grep -Fq -- "$pattern" "$DAEMON"; then
+  if ! grep -Fq -- "$pattern" "$DAEMON" && ! grep -Fq -- "$pattern" "$LOG_H"; then
     echo "ERROR: missing context logging pattern: $label" >&2
     rc=1
   fi
@@ -23,7 +24,7 @@ forbid() {
   local pattern="$1"
   local label="$2"
 
-  if grep -Fq -- "$pattern" "$DAEMON"; then
+  if grep -Fq -- "$pattern" "$DAEMON" || grep -Fq -- "$pattern" "$LOG_H"; then
     echo "ERROR: obsolete context logging pattern remains: $label" >&2
     rc=1
   fi

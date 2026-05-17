@@ -127,8 +127,7 @@ static void init_fake_controller(RadioController<FakeRadio> *ctrl,
 }
 
 static ConfigDispatchContext<FakeRadio> make_context(ClientSlot *slots,
-                                                     RadioController<FakeRadio> *ctrl,
-                                                     const char *prefix)
+                                                     RadioController<FakeRadio> *ctrl)
 {
     ConfigDispatchLog log = {
         NULL,
@@ -140,7 +139,6 @@ static ConfigDispatchContext<FakeRadio> make_context(ClientSlot *slots,
         slots,
         ctrl,
         "CONF TEST",
-        prefix,
         record_apply_config,
         log
     };
@@ -179,7 +177,7 @@ static void test_dispatch_ready_client(void)
     expect_int("ready wait", event_loop_wait(&set, &readfds, 100000), 1);
 
     ConfigDispatchContext<FakeRadio> ctx =
-        make_context(slots, &ctrl, "[TEST]");
+        make_context(slots, &ctrl);
 
     config_dispatch_context<FakeRadio>(&ctx, 2, &readfds, buf);
 
@@ -233,7 +231,7 @@ static void test_dispatch_ready_client_epoll(void)
     expect_int("ready epoll wait", event_loop_wait(&set, &readfds, 100000), 1);
 
     ConfigDispatchContext<FakeRadio> ctx =
-        make_context(slots, &ctrl, "[TEST]");
+        make_context(slots, &ctrl);
 
     config_dispatch_context<FakeRadio>(&ctx, 2, &readfds, buf);
 
@@ -276,7 +274,7 @@ static void test_dispatch_ignores_not_ready_client(void)
     expect_int("not ready wait", event_loop_wait(&set, &readfds, 100000), 1);
 
     ConfigDispatchContext<FakeRadio> ctx =
-        make_context(slots, &ctrl, NULL);
+        make_context(slots, &ctrl);
 
     config_dispatch_context<FakeRadio>(&ctx, 2, &readfds, buf);
 
@@ -318,7 +316,7 @@ static void test_dispatch_closes_eof_client(void)
     expect_int("eof wait", event_loop_wait(&set, &readfds, 100000), 1);
 
     ConfigDispatchContext<FakeRadio> ctx =
-        make_context(slots, &ctrl, NULL);
+        make_context(slots, &ctrl);
 
     config_dispatch_context<FakeRadio>(&ctx, 2, &readfds, buf);
 

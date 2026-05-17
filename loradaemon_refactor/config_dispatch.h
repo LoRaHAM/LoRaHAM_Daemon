@@ -67,7 +67,6 @@ struct ConfigDispatchContext {
     ClientSlot *slots;
     RadioController<RadioT> *ctrl;
     const char *tag;
-    const char *prefix;
     ConfigApplyFn<RadioT> apply_config;
     ConfigDispatchLog log;
 };
@@ -76,7 +75,6 @@ template<typename RadioT>
 struct ConfigLineApplyContext {
     RadioController<RadioT> *ctrl;
     const char *tag;
-    const char *prefix;
     ConfigApplyFn<RadioT> apply_config;
     ConfigDispatchLog log;
 };
@@ -118,7 +116,6 @@ static void config_dispatch_client(ClientSlot *slots,
                                    uint8_t *buf,
                                    RadioController<RadioT> *ctrl,
                                    const char *tag,
-                                   const char *prefix,
                                    ConfigApplyFn<RadioT> apply_config,
                                    ConfigDispatchLog log)
 {
@@ -130,7 +127,6 @@ static void config_dispatch_client(ClientSlot *slots,
     ConfigLineApplyContext<RadioT> line_ctx = {
         ctrl,
         tag,
-        prefix,
         apply_config,
         log
     };
@@ -187,13 +183,12 @@ static void config_dispatch_clients(ClientSlot *slots,
                                     uint8_t *buf,
                                     RadioController<RadioT> *ctrl,
                                     const char *tag,
-                                    const char *prefix,
-                                    ConfigApplyFn<RadioT> apply_config,
+                                     ConfigApplyFn<RadioT> apply_config,
                                     ConfigDispatchLog log)
 {
     for(int i=0;i<max_clients;i++){
         config_dispatch_client<RadioT>(slots, i, readfds, buf,
-                                       ctrl, tag, prefix,
+                                       ctrl, tag,
                                        apply_config, log);
     }
 }
@@ -206,7 +201,7 @@ static void config_dispatch_context(ConfigDispatchContext<RadioT> *ctx,
 {
     config_dispatch_clients<RadioT>(ctx->slots,
                                     max_clients, readfds, buf,
-                                    ctx->ctrl, ctx->tag, ctx->prefix,
+                                    ctx->ctrl, ctx->tag,
                                     ctx->apply_config,
                                     ctx->log);
 }
