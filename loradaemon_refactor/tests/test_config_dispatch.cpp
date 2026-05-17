@@ -63,6 +63,17 @@ static void expect_int(const char *name, int actual, int expected)
     }
 }
 
+static void expect_size(const char *name, size_t actual, size_t expected)
+{
+    if (actual == expected) {
+        g_ok++;
+        printf("[ OK ] %s\n", name);
+    } else {
+        g_fail++;
+        printf("[FAIL] %s: expected %zu, got %zu\n", name, expected, actual);
+    }
+}
+
 static void expect_str(const char *name, const char *actual, const char *expected)
 {
     if (strcmp(actual, expected) == 0) {
@@ -102,13 +113,34 @@ static void record_apply_config(FakeRadio& radio,
     getrssi_active = true;
 }
 
+static ConfigDispatchContext<FakeRadio> make_context(ClientSlot *slots,
+                                                     FakeRadio *radio,
+                                                     volatile RadioHealth *health,
+                                                     volatile RadioMode_t *mode,
+                                                     volatile bool *getrssi_active,
+                                                     const char *prefix)
+{
+    ConfigDispatchContext<FakeRadio> ctx = {
+        slots,
+        radio,
+        health,
+        "CONF TEST",
+        prefix,
+        mode,
+        getrssi_active,
+        record_apply_config,
+        fake_rx_callback
+    };
+
+    return ctx;
+}
+
 /* --- Dispatch behavior --- */
 
 static void test_dispatch_ready_client(void)
 {
     int sv[2];
-    int clients[2] = {0};
-    ConfigStreamBuffer streams[2];
+    ClientSlot slots[2];
     uint8_t buf[buf_SIZE];
     EventLoopSet set;
     EventLoopReadySet readfds;
@@ -118,7 +150,7 @@ static void test_dispatch_ready_client(void)
     volatile RadioHealth health = RADIO_HEALTH_READY;
 
     memset(&g_apply_state, 0, sizeof(g_apply_state));
-    config_stream_init_all(streams, 2);
+    client_slot_init_all(slots, 2);
     memset(buf, 0, sizeof(buf));
 
     if (!make_socket_pair(sv)) {
@@ -126,7 +158,7 @@ static void test_dispatch_ready_client(void)
         return;
     }
 
-    clients[0] = sv[1];
+    client_slot_set_fd(&slots[0], sv[1]);
 
     const char *cmd = "SET GETRSSI=1\n";
     write(sv[0], cmd, strlen(cmd));
@@ -135,19 +167,8 @@ static void test_dispatch_ready_client(void)
     event_loop_add_fd(&set, sv[1]);
     expect_int("ready wait", event_loop_wait(&set, &readfds, 100000), 1);
 
-    ConfigDispatchContext<FakeRadio> ctx = {
-        clients,
-        streams,
-        NULL,
-        &radio,
-        &health,
-        "CONF TEST",
-        "[TEST]",
-        &mode,
-        &getrssi_active,
-        record_apply_config,
-        fake_rx_callback
-    };
+    ConfigDispatchContext<FakeRadio> ctx =
+        make_context(slots, &radio, &health, &mode, &getrssi_active, "[TEST]");
 
     config_dispatch_context<FakeRadio>(&ctx, 2, &readfds, buf);
 
@@ -158,18 +179,17 @@ static void test_dispatch_ready_client(void)
     expect_int("getrssi updated by apply", getrssi_active == true, 1);
     expect_int("callback restored", radio.callback_count, 1);
     expect_int("startReceive called", radio.start_receive_count, 1);
-    expect_int("client still open", clients[0] > 0, 1);
+    expect_int("client still open", client_slot_has_client(&slots[0]), 1);
 
     close(sv[0]);
-    client_set_close_slot(clients, 0);
+    client_slot_close(&slots[0]);
 }
 
 
 static void test_dispatch_ready_client_epoll(void)
 {
     int sv[2];
-    int clients[2] = {0};
-    ConfigStreamBuffer streams[2];
+    ClientSlot slots[2];
     uint8_t buf[buf_SIZE];
     EventLoopSet set;
     EventLoopReadySet readfds;
@@ -179,7 +199,7 @@ static void test_dispatch_ready_client_epoll(void)
     volatile RadioHealth health = RADIO_HEALTH_READY;
 
     memset(&g_apply_state, 0, sizeof(g_apply_state));
-    config_stream_init_all(streams, 2);
+    client_slot_init_all(slots, 2);
     memset(buf, 0, sizeof(buf));
 
     if (!make_socket_pair(sv)) {
@@ -187,11 +207,11 @@ static void test_dispatch_ready_client_epoll(void)
         return;
     }
 
-    clients[0] = sv[1];
+    client_slot_set_fd(&slots[0], sv[1]);
 
     if (event_loop_init(&set) != 0) {
         close(sv[0]);
-        client_set_close_slot(clients, 0);
+        client_slot_close(&slots[0]);
         g_fail++;
         printf("[FAIL] config epoll init\n");
         return;
@@ -203,19 +223,8 @@ static void test_dispatch_ready_client_epoll(void)
     event_loop_add_fd(&set, sv[1]);
     expect_int("ready epoll wait", event_loop_wait(&set, &readfds, 100000), 1);
 
-    ConfigDispatchContext<FakeRadio> ctx = {
-        clients,
-        streams,
-        NULL,
-        &radio,
-        &health,
-        "CONF TEST",
-        "[TEST]",
-        &mode,
-        &getrssi_active,
-        record_apply_config,
-        fake_rx_callback
-    };
+    ConfigDispatchContext<FakeRadio> ctx =
+        make_context(slots, &radio, &health, &mode, &getrssi_active, "[TEST]");
 
     config_dispatch_context<FakeRadio>(&ctx, 2, &readfds, buf);
 
@@ -226,14 +235,13 @@ static void test_dispatch_ready_client_epoll(void)
 
     event_loop_close(&set);
     close(sv[0]);
-    client_set_close_slot(clients, 0);
+    client_slot_close(&slots[0]);
 }
 
 static void test_dispatch_ignores_not_ready_client(void)
 {
     int sv[2];
-    int clients[2] = {0};
-    ConfigStreamBuffer streams[2];
+    ClientSlot slots[2];
     uint8_t buf[buf_SIZE];
     EventLoopSet set;
     EventLoopReadySet readfds;
@@ -243,7 +251,7 @@ static void test_dispatch_ignores_not_ready_client(void)
     volatile RadioHealth health = RADIO_HEALTH_FAILED;
 
     memset(&g_apply_state, 0, sizeof(g_apply_state));
-    config_stream_init_all(streams, 2);
+    client_slot_init_all(slots, 2);
     memset(buf, 0, sizeof(buf));
 
     if (!make_socket_pair(sv)) {
@@ -251,7 +259,7 @@ static void test_dispatch_ignores_not_ready_client(void)
         return;
     }
 
-    clients[0] = sv[1];
+    client_slot_set_fd(&slots[0], sv[1]);
 
     const char *cmd = "SET GETRSSI=1\n";
     write(sv[0], cmd, strlen(cmd));
@@ -260,36 +268,24 @@ static void test_dispatch_ignores_not_ready_client(void)
     event_loop_add_fd(&set, sv[1]);
     expect_int("not ready wait", event_loop_wait(&set, &readfds, 100000), 1);
 
-    ConfigDispatchContext<FakeRadio> ctx = {
-        clients,
-        streams,
-        NULL,
-        &radio,
-        &health,
-        "CONF TEST",
-        NULL,
-        &mode,
-        &getrssi_active,
-        record_apply_config,
-        fake_rx_callback
-    };
+    ConfigDispatchContext<FakeRadio> ctx =
+        make_context(slots, &radio, &health, &mode, &getrssi_active, NULL);
 
     config_dispatch_context<FakeRadio>(&ctx, 2, &readfds, buf);
 
     expect_int("not ready apply count", g_apply_state.calls, 0);
     expect_int("not ready callback count", radio.callback_count, 0);
     expect_int("not ready startReceive count", radio.start_receive_count, 0);
-    expect_int("not ready client open", clients[0] > 0, 1);
+    expect_int("not ready client open", client_slot_has_client(&slots[0]), 1);
 
     close(sv[0]);
-    client_set_close_slot(clients, 0);
+    client_slot_close(&slots[0]);
 }
 
 static void test_dispatch_closes_eof_client(void)
 {
     int sv[2];
-    int clients[2] = {0};
-    ConfigStreamBuffer streams[2];
+    ClientSlot slots[2];
     uint8_t buf[buf_SIZE];
     EventLoopSet set;
     EventLoopReadySet readfds;
@@ -299,7 +295,7 @@ static void test_dispatch_closes_eof_client(void)
     volatile RadioHealth health = RADIO_HEALTH_READY;
 
     memset(&g_apply_state, 0, sizeof(g_apply_state));
-    config_stream_init_all(streams, 2);
+    client_slot_init_all(slots, 2);
     memset(buf, 0, sizeof(buf));
 
     if (!make_socket_pair(sv)) {
@@ -307,7 +303,9 @@ static void test_dispatch_closes_eof_client(void)
         return;
     }
 
-    clients[0] = sv[1];
+    client_slot_set_fd(&slots[0], sv[1]);
+    client_output_queue_append(&slots[0].output, (const uint8_t *)"pending", 7);
+    slots[0].stream.len = 3;
 
     close(sv[0]);
 
@@ -315,26 +313,17 @@ static void test_dispatch_closes_eof_client(void)
     event_loop_add_fd(&set, sv[1]);
     expect_int("eof wait", event_loop_wait(&set, &readfds, 100000), 1);
 
-    ConfigDispatchContext<FakeRadio> ctx = {
-        clients,
-        streams,
-        NULL,
-        &radio,
-        &health,
-        "CONF TEST",
-        NULL,
-        &mode,
-        &getrssi_active,
-        record_apply_config,
-        fake_rx_callback
-    };
+    ConfigDispatchContext<FakeRadio> ctx =
+        make_context(slots, &radio, &health, &mode, &getrssi_active, NULL);
 
     config_dispatch_context<FakeRadio>(&ctx, 2, &readfds, buf);
 
     expect_int("eof apply count", g_apply_state.calls, 0);
     expect_int("eof callback count", radio.callback_count, 0);
     expect_int("eof startReceive count", radio.start_receive_count, 0);
-    expect_int("eof client closed", clients[0], 0);
+    expect_int("eof client closed", slots[0].fd, 0);
+    expect_size("eof output reset", client_output_queue_pending(&slots[0].output), 0);
+    expect_size("eof stream reset", slots[0].stream.len, 0);
 }
 
 /* --- CLI parsing and test sequence --- */

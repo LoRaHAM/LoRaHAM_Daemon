@@ -147,6 +147,58 @@ static void test_close_all_resets_multiple_slots(void)
     close(sv1[1]);
 }
 
+
+static void test_broadcast_and_flush_helpers(void)
+{
+    ClientSlot slots[2];
+    int sv[2];
+    char buf[8] = {0};
+
+    client_slot_init_all(slots, 2);
+
+    if (socketpair(AF_UNIX, SOCK_STREAM, 0, sv) != 0) {
+        g_fail++;
+        printf("[FAIL] broadcast socketpair\n");
+        return;
+    }
+
+    client_slot_set_fd(&slots[0], sv[0]);
+    client_slot_broadcast_queued(slots, 2, "hi");
+
+    ssize_t n = read(sv[1], buf, sizeof(buf));
+    expect_int("broadcast read size", (int)n, 2);
+    expect_int("broadcast content h", buf[0], 'h');
+    expect_int("broadcast content i", buf[1], 'i');
+    expect_size("broadcast output drained", client_output_queue_pending(&slots[0].output), 0);
+
+    client_slot_close(&slots[0]);
+    close(sv[1]);
+}
+
+static void test_add_has_and_close_helpers(void)
+{
+    ClientSlot slots[2];
+    int sv[2];
+
+    client_slot_init_all(slots, 2);
+
+    if (socketpair(AF_UNIX, SOCK_STREAM, 0, sv) != 0) {
+        g_fail++;
+        printf("[FAIL] add socketpair\n");
+        return;
+    }
+
+    expect_int("add helper succeeds", client_slot_add(slots, 2, sv[0]), 1);
+    expect_int("has clients after add", client_slot_has_clients(slots, 2), 1);
+    expect_int("added fd visible", slots[0].fd, sv[0]);
+
+    client_slot_close_all(slots, 2);
+    expect_int("has no clients after close_all", client_slot_has_clients(slots, 2), 0);
+
+    close(sv[1]);
+}
+
+
 int main(int argc, char **argv)
 {
     for (int i = 1; i < argc; i++) {
@@ -171,6 +223,8 @@ int main(int argc, char **argv)
     test_set_fd_resets_dependent_state();
     test_close_resets_fd_output_and_stream();
     test_close_all_resets_multiple_slots();
+    test_broadcast_and_flush_helpers();
+    test_add_has_and_close_helpers();
 
     printf("\nSummary: ok=%d fail=%d\n", g_ok, g_fail);
 

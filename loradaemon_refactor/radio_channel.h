@@ -5,6 +5,7 @@
 #include <sys/select.h>
 #include "event_loop.h"
 #include "client_set.h"
+#include "client_slot.h"
 
 class Module;
 
@@ -31,9 +32,8 @@ typedef struct {
     int *data_listen_fd;
     int *conf_listen_fd;
     int *data_clients;
-    int *conf_clients;
+    ClientSlot *conf_slots;
     ClientOutputQueue *data_output_queues;
-    ClientOutputQueue *conf_output_queues;
 } RadioChannelIo;
 
 void radio_channel_io_init(RadioChannelIo *ch,
@@ -43,9 +43,8 @@ void radio_channel_io_init(RadioChannelIo *ch,
                            int *data_listen_fd,
                            int *conf_listen_fd,
                            int *data_clients,
-                           int *conf_clients,
-                           ClientOutputQueue *data_output_queues,
-                           ClientOutputQueue *conf_output_queues);
+                           ClientSlot *conf_slots,
+                           ClientOutputQueue *data_output_queues);
 
 void radio_channel_open_sockets(RadioChannelIo *ch);
 void radio_channel_add_fds(RadioChannelIo *ch, EventLoopSet *set);

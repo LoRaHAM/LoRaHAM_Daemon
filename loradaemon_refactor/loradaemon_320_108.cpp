@@ -146,6 +146,7 @@
 #include "event_loop.h"
 #include "unix_socket.h"
 #include "client_set.h"
+#include "client_slot.h"
 #include "radio_channel.h"
 #include "config_dispatch.h"
 #include "config_stream.h"
@@ -157,16 +158,11 @@ int conf433_fd = -1, conf868_fd = -1;
 
 int client_data433[MAX_CLIENTS] = {0};
 int client_data868[MAX_CLIENTS] = {0};
-int client_conf433[MAX_CLIENTS] = {0};
-int client_conf868[MAX_CLIENTS] = {0};
+ClientSlot client_conf433_slots[MAX_CLIENTS];
+ClientSlot client_conf868_slots[MAX_CLIENTS];
 
 ClientOutputQueue output_data433[MAX_CLIENTS];
 ClientOutputQueue output_data868[MAX_CLIENTS];
-ClientOutputQueue output_conf433[MAX_CLIENTS];
-ClientOutputQueue output_conf868[MAX_CLIENTS];
-
-ConfigStreamBuffer config_stream_conf433[MAX_CLIENTS];
-ConfigStreamBuffer config_stream_conf868[MAX_CLIENTS];
 
 /* --- Channel IO state ---------------------------------------------------- */
 // Kanal-Zustand für Socket- und Clientverwaltung
@@ -179,8 +175,8 @@ static void daemon_shutdown_cleanup(EventLoopSet *event_set)
 
     client_set_close_all_with_output(client_data433, output_data433, MAX_CLIENTS);
     client_set_close_all_with_output(client_data868, output_data868, MAX_CLIENTS);
-    client_set_close_all_with_output(client_conf433, output_conf433, MAX_CLIENTS);
-    client_set_close_all_with_output(client_conf868, output_conf868, MAX_CLIENTS);
+    client_slot_close_all(client_conf433_slots, MAX_CLIENTS);
+    client_slot_close_all(client_conf868_slots, MAX_CLIENTS);
 
     close_unix_socket(&data433_fd, DATA433_SOCKET);
     close_unix_socket(&data868_fd, DATA868_SOCKET);
@@ -693,8 +689,8 @@ static void daemon_radio_io_init(void)
 {
     client_output_queue_init_all(output_data433, MAX_CLIENTS);
     client_output_queue_init_all(output_data868, MAX_CLIENTS);
-    client_output_queue_init_all(output_conf433, MAX_CLIENTS);
-    client_output_queue_init_all(output_conf868, MAX_CLIENTS);
+    client_slot_init_all(client_conf433_slots, MAX_CLIENTS);
+    client_slot_init_all(client_conf868_slots, MAX_CLIENTS);
 
     radio_channel_io_init(&channel_433,
                           RADIO_BAND_433,
@@ -703,9 +699,8 @@ static void daemon_radio_io_init(void)
                           &data433_fd,
                           &conf433_fd,
                           client_data433,
-                          client_conf433,
-                          output_data433,
-                          output_conf433);
+                          client_conf433_slots,
+                          output_data433);
     radio_channel_io_init(&channel_868,
                           RADIO_BAND_868,
                           DATA868_SOCKET,
@@ -713,9 +708,8 @@ static void daemon_radio_io_init(void)
                           &data868_fd,
                           &conf868_fd,
                           client_data868,
-                          client_conf868,
-                          output_data868,
-                          output_conf868);
+                          client_conf868_slots,
+                          output_data868);
 
     radio_channel_open_sockets(&channel_433);
     radio_channel_open_sockets(&channel_868);
@@ -835,9 +829,7 @@ static DataTxDaemonContext daemon_data_tx_context(const char *tag,
 static ConfigDispatchContext<SX1278> daemon_config_433_context(void)
 {
     ConfigDispatchContext<SX1278> ctx = {
-        client_conf433,
-        config_stream_conf433,
-        output_conf433,
+        client_conf433_slots,
         radio_433,
         &radio_health_433,
         "CONF 433",
@@ -854,9 +846,7 @@ static ConfigDispatchContext<SX1278> daemon_config_433_context(void)
 static ConfigDispatchContext<RFM95> daemon_config_868_context(void)
 {
     ConfigDispatchContext<RFM95> ctx = {
-        client_conf868,
-        config_stream_conf868,
-        output_conf868,
+        client_conf868_slots,
         radio_868,
         &radio_health_868,
         "CONF 868",
@@ -890,9 +880,9 @@ static void daemon_loop_context_init(DaemonLoopContext *ctx)
     ctx->data_tx_433_ctx = daemon_data_tx_context("433", 433, &mode_433, &radio_health_433);
     ctx->data_tx_868_ctx = daemon_data_tx_context("868", 868, &mode_868, &radio_health_868);
 
-    // CONFIG stream buffers.
-    config_stream_init_all(config_stream_conf433, MAX_CLIENTS);
-    config_stream_init_all(config_stream_conf868, MAX_CLIENTS);
+    // CONFIG client slots.
+    client_slot_init_all(client_conf433_slots, MAX_CLIENTS);
+    client_slot_init_all(client_conf868_slots, MAX_CLIENTS);
 
     // CONFIG contexts.
     ctx->config_433_ctx = daemon_config_433_context();
@@ -964,13 +954,13 @@ static void daemon_process_cad_status(int band)
             setFlashFlag433();
             if (!cad433_active) {
                 LED_433(1);
-                client_set_broadcast_queued(client_conf433, output_conf433, MAX_CLIENTS, "CAD=1\n");
+                client_slot_broadcast_queued(client_conf433_slots, MAX_CLIENTS, "CAD=1\n");
                 cad433_active = true;
             }
         } else {
             if (cad433_active && !receivedFlag433) {
                 LED_433(0);
-                client_set_broadcast_queued(client_conf433, output_conf433, MAX_CLIENTS, "CAD=0\n");
+                client_slot_broadcast_queued(client_conf433_slots, MAX_CLIENTS, "CAD=0\n");
                 cad433_active = false;
             }
         }
@@ -988,13 +978,13 @@ static void daemon_process_cad_status(int band)
         setFlashFlag868();
         if (!cad868_active) {
             LED_868(1);
-            client_set_broadcast_queued(client_conf868, output_conf868, MAX_CLIENTS, "CAD=1\n");
+            client_slot_broadcast_queued(client_conf868_slots, MAX_CLIENTS, "CAD=1\n");
             cad868_active = true;
         }
     } else {
         if (cad868_active && !receivedFlag868) {
             LED_868(0);
-            client_set_broadcast_queued(client_conf868, output_conf868, MAX_CLIENTS, "CAD=0\n");
+            client_slot_broadcast_queued(client_conf868_slots, MAX_CLIENTS, "CAD=0\n");
             cad868_active = false;
         }
     }
@@ -1036,7 +1026,7 @@ static void daemon_process_rssi_stream(DaemonDeadlineTimer *rssi_timer)
             float rssi433 = radio_channel_read_live_rssi(mod_433, mode_433, false);
             char rssi_msg[32];
             snprintf(rssi_msg, sizeof(rssi_msg), "RSSI=%.2f\n", rssi433);
-            client_set_broadcast_queued(client_conf433, output_conf433, MAX_CLIENTS, rssi_msg);
+            client_slot_broadcast_queued(client_conf433_slots, MAX_CLIENTS, rssi_msg);
         }
 
         // 868: nur lesen wenn aktiv und kein TX laeuft
@@ -1044,7 +1034,7 @@ static void daemon_process_rssi_stream(DaemonDeadlineTimer *rssi_timer)
             float rssi868 = radio_channel_read_live_rssi(mod_868, mode_868, true);
             char rssi_msg[32];
             snprintf(rssi_msg, sizeof(rssi_msg), "RSSI=%.2f\n", rssi868);
-            client_set_broadcast_queued(client_conf868, output_conf868, MAX_CLIENTS, rssi_msg);
+            client_slot_broadcast_queued(client_conf868_slots, MAX_CLIENTS, rssi_msg);
         }
     }
 }

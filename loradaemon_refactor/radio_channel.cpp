@@ -5,6 +5,7 @@
 #include "daemon_protocol.h"
 #include "unix_socket.h"
 #include "client_set.h"
+#include "client_slot.h"
 #include "event_loop.h"
 
 #include <stdio.h>
@@ -18,9 +19,8 @@ void radio_channel_io_init(RadioChannelIo *ch,
                            int *data_listen_fd,
                            int *conf_listen_fd,
                            int *data_clients,
-                           int *conf_clients,
-                           ClientOutputQueue *data_output_queues,
-                           ClientOutputQueue *conf_output_queues)
+                           ClientSlot *conf_slots,
+                           ClientOutputQueue *data_output_queues)
 {
     ch->band = band;
     ch->data_socket_path = data_socket_path;
@@ -28,9 +28,8 @@ void radio_channel_io_init(RadioChannelIo *ch,
     ch->data_listen_fd = data_listen_fd;
     ch->conf_listen_fd = conf_listen_fd;
     ch->data_clients = data_clients;
-    ch->conf_clients = conf_clients;
+    ch->conf_slots = conf_slots;
     ch->data_output_queues = data_output_queues;
-    ch->conf_output_queues = conf_output_queues;
 }
 
 
@@ -44,10 +43,9 @@ void radio_channel_add_fds(RadioChannelIo *ch, EventLoopSet *set)
                                              ch->data_output_queues,
                                              MAX_CLIENTS,
                                              set);
-    client_set_add_to_event_loop_with_output(ch->conf_clients,
-                                             ch->conf_output_queues,
-                                             MAX_CLIENTS,
-                                             set);
+    client_slot_add_to_event_loop_with_output(ch->conf_slots,
+                                                  MAX_CLIENTS,
+                                                  set);
 }
 
 void radio_channel_accept_ready(RadioChannelIo *ch, const EventLoopReadySet *ready)
@@ -59,10 +57,9 @@ void radio_channel_accept_ready(RadioChannelIo *ch, const EventLoopReadySet *rea
                                       MAX_CLIENTS);
 
     if(event_loop_ready_fd_read(ready, *ch->conf_listen_fd))
-        client_set_accept_with_output(*ch->conf_listen_fd,
-                                      ch->conf_clients,
-                                      ch->conf_output_queues,
-                                      MAX_CLIENTS);
+        client_slot_accept_with_output(*ch->conf_listen_fd,
+                                       ch->conf_slots,
+                                       MAX_CLIENTS);
 }
 
 void radio_channel_open_sockets(RadioChannelIo *ch)
@@ -77,10 +74,9 @@ void radio_channel_flush_ready(RadioChannelIo *ch, const EventLoopReadySet *read
                                    ch->data_output_queues,
                                    MAX_CLIENTS,
                                    ready);
-    client_set_flush_ready_outputs(ch->conf_clients,
-                                   ch->conf_output_queues,
-                                   MAX_CLIENTS,
-                                   ready);
+    client_slot_flush_ready_outputs(ch->conf_slots,
+                                    MAX_CLIENTS,
+                                    ready);
 }
 
 
@@ -104,7 +100,7 @@ void radio_channel_getrssi_autostop(RadioChannelIo *io,
                                     RadioChannelRuntime *rt,
                                     const char *tag)
 {
-    if(!client_set_has_clients(io->conf_clients, MAX_CLIENTS) && *rt->getrssi_active) {
+    if(!client_slot_has_clients(io->conf_slots, MAX_CLIENTS) && *rt->getrssi_active) {
         *rt->getrssi_active = false;
         printf("[%s] kein Client mehr verbunden -> GETRSSI auto-stop\n", tag);
         fflush(stdout);

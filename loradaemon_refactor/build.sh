@@ -458,7 +458,8 @@ build_one_config_dispatch_test() {
     "$SCRIPT_DIR/client_set.cpp" \
     "$SCRIPT_DIR/radio_health.cpp" \
     "$SCRIPT_DIR/config_stream.cpp" \
-    "${event_loop_sources[@]}"
+    "${event_loop_sources[@]}" \
+    "$SCRIPT_DIR/client_slot.cpp"
 }
 
 build_tests() {
