@@ -62,6 +62,8 @@ fi
 tests=(
   "$TEST_DIR/test_data_tx"
   "$TEST_DIR/test_client_output_queue"
+  "$TEST_DIR/test_client_slot"
+  "$TEST_DIR/check_client_slot_structure.sh"
   "$TEST_DIR/test_client_nonblocking"
   "$TEST_DIR/test_client_queued_broadcast"
   "$TEST_DIR/test_client_slow_output"

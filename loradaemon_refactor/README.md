@@ -19,7 +19,7 @@ The daemon is the interface between the LoRaHAM radio hardware and applications 
 | Main daemon | `loradaemon_320_108.cpp` | Radio setup, main loop, TX/RX flow, CAD/RSSI polling |
 | Event loop | `event_loop.cpp`, `event_loop_epoll.cpp` | epoll-based socket waiting |
 | UNIX sockets | `unix_socket.cpp` | Create and remove socket files |
-| Client handling | `client_set.cpp` | Client slots, reads, closes, broadcasts |
+| Client handling | `client_set.cpp`, `client_slot.cpp` | Client slots, reads, closes, broadcasts, unified slot state helpers |
 | DATA TX | `data_tx.cpp` | Split DATA socket writes into RF chunks |
 | CONFIG parser/apply | `config_parser.cpp`, `config_value.cpp`, `config_policy.cpp`, `config_validate.cpp`, `config_apply.cpp`, `config_dispatch.h` | Parse `SET KEY=VALUE` commands, validate complete commands transactionally, and apply RadioLib settings |
 | Radio channel state | `radio_channel.cpp` | Per-band socket/client state, RSSI auto-stop, live RSSI |
