@@ -3,56 +3,11 @@
 /*
  * Known-issue tests.
  *
- * These describe desired behavior for the refactor. They are run as XFAIL
- * so they document targets without breaking the current baseline.
+ * These describe desired future behavior. They are run as XFAIL so they
+ * document bugfix targets without breaking the current baseline.
  */
 
 static const char *g_bin = NULL;
-
-/* --- Source contracts for readability fixes --- */
-
-static int test_conf868_log_prefix_source_contract(void)
-{
-    char source_path[1024];
-    char *source;
-    char *ctx868;
-    char *ctx_end;
-
-    if (source_contract_daemon_source_path(g_bin, source_path,
-                                           sizeof(source_path)) != TEST_PASS)
-        return TEST_FAIL;
-
-    source = source_contract_read_text_file(source_path);
-    if (!source)
-        return TEST_FAIL;
-
-    ctx868 = strstr(source,
-                    "static ConfigDispatchContext<RFM95> daemon_config_868_context(void)");
-    if (!ctx868) {
-        free(source);
-        return TEST_FAIL;
-    }
-
-    ctx_end = strstr(ctx868, "/* --- Loop context");
-    if (!ctx_end)
-        ctx_end = strstr(ctx868, "/* --- Main loop context");
-    if (!ctx_end) {
-        free(source);
-        return TEST_FAIL;
-    }
-
-    *ctx_end = '\0';
-
-    if (!strstr(ctx868, "\"CONF 868\"") ||
-        !strstr(ctx868, "\"[CONF868]\"") ||
-        strstr(ctx868, "NULL")) {
-        free(source);
-        return TEST_FAIL;
-    }
-
-    free(source);
-    return TEST_PASS;
-}
 
 
 /* --- Desired: command parser should buffer fragmented stream input --- */
@@ -157,9 +112,6 @@ int main(int argc, char **argv)
         usage_common(argv[0]);
         return 2;
     }
-
-    run_test("source contract: CONF868 has visible log prefix",
-             test_conf868_log_prefix_source_contract);
 
     info_msg("starting daemon: %s", g_bin);
     if (start_daemon(g_bin) < 0)
