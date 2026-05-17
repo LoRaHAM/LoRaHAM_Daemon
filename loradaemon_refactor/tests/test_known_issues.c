@@ -9,6 +9,113 @@
 
 static const char *g_bin = NULL;
 
+/* --- Source contracts for readability fixes --- */
+
+static int daemon_source_path(char *out, size_t out_size)
+{
+    const char *slash;
+
+    if (!g_bin || out_size == 0)
+        return TEST_FAIL;
+
+    slash = strrchr(g_bin, '/');
+    if (!slash)
+        return snprintf(out, out_size,
+                        "loradaemon_refactor/loradaemon_320_108.cpp") > 0
+            ? TEST_PASS
+            : TEST_FAIL;
+
+    if (snprintf(out, out_size, "%.*s/loradaemon_320_108.cpp",
+                 (int)(slash - g_bin), g_bin) >= (int)out_size)
+        return TEST_FAIL;
+
+    return TEST_PASS;
+}
+
+static char *read_text_file(const char *path)
+{
+    FILE *fp;
+    long size;
+    char *data;
+
+    fp = fopen(path, "rb");
+    if (!fp)
+        return NULL;
+
+    if (fseek(fp, 0, SEEK_END) != 0) {
+        fclose(fp);
+        return NULL;
+    }
+
+    size = ftell(fp);
+    if (size < 0) {
+        fclose(fp);
+        return NULL;
+    }
+
+    if (fseek(fp, 0, SEEK_SET) != 0) {
+        fclose(fp);
+        return NULL;
+    }
+
+    data = (char *)malloc((size_t)size + 1);
+    if (!data) {
+        fclose(fp);
+        return NULL;
+    }
+
+    if (fread(data, 1, (size_t)size, fp) != (size_t)size) {
+        free(data);
+        fclose(fp);
+        return NULL;
+    }
+
+    data[size] = '\0';
+    fclose(fp);
+    return data;
+}
+
+static int test_conf868_log_prefix_source_contract(void)
+{
+    char source_path[1024];
+    char *source;
+    char *ctx868;
+    char *ctx_end;
+
+    if (daemon_source_path(source_path, sizeof(source_path)) != TEST_PASS)
+        return TEST_FAIL;
+
+    source = read_text_file(source_path);
+    if (!source)
+        return TEST_FAIL;
+
+    ctx868 = strstr(source,
+                    "static ConfigDispatchContext<RFM95> daemon_config_868_context(void)");
+    if (!ctx868) {
+        free(source);
+        return TEST_FAIL;
+    }
+
+    ctx_end = strstr(ctx868, "/* --- Main loop context");
+    if (!ctx_end) {
+        free(source);
+        return TEST_FAIL;
+    }
+
+    *ctx_end = '\0';
+
+    if (!strstr(ctx868, "\"CONF 868\"") ||
+        !strstr(ctx868, "\"[CONF868]\"") ||
+        strstr(ctx868, "NULL")) {
+        free(source);
+        return TEST_FAIL;
+    }
+
+    free(source);
+    return TEST_PASS;
+}
+
+
 /* --- Desired: command parser should buffer fragmented stream input --- */
 
 static int desired_fragmented_conf_command_433(void)
@@ -111,6 +218,9 @@ int main(int argc, char **argv)
         usage_common(argv[0]);
         return 2;
     }
+
+    run_test("source contract: CONF868 has visible log prefix",
+             test_conf868_log_prefix_source_contract);
 
     info_msg("starting daemon: %s", g_bin);
     if (start_daemon(g_bin) < 0)
