@@ -354,6 +354,16 @@ build_one_rf_packet_test() {
 
 
 
+build_one_radio_controller_skeleton_test() {
+  local src="$1"
+  local out="$2"
+
+  build_one_cpp_sources \
+    "$out" \
+    "$src" \
+    "$SCRIPT_DIR/radio_health.cpp"
+}
+
 build_one_radio_health_test() {
   local src="$1"
   local out="$2"
@@ -463,6 +473,7 @@ build_tests() {
   build_one_event_loop_output_flush_test "$TEST_DIR/test_event_loop_output_flush.cpp" "$TEST_DIR/test_event_loop_output_flush"
   build_one_tx_result_test "$TEST_DIR/test_tx_result.cpp" "$TEST_DIR/test_tx_result"
   build_one_radio_health_test "$TEST_DIR/test_radio_health.cpp" "$TEST_DIR/test_radio_health"
+  build_one_radio_controller_skeleton_test "$TEST_DIR/test_radio_controller_skeleton.cpp" "$TEST_DIR/test_radio_controller_skeleton"
   build_one_rf_packet_test "$TEST_DIR/test_rf_packet.cpp" "$TEST_DIR/test_rf_packet"
   build_one_event_loop_test "$TEST_DIR/test_event_loop.cpp" "$TEST_DIR/test_event_loop"
   build_one_timing_test "$TEST_DIR/test_daemon_timing.cpp" "$TEST_DIR/test_daemon_timing"

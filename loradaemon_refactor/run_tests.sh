@@ -70,6 +70,7 @@ tests=(
   "$TEST_DIR/test_event_loop_output_flush"
   "$TEST_DIR/test_tx_result"
   "$TEST_DIR/test_radio_health"
+  "$TEST_DIR/test_radio_controller_skeleton"
   "$TEST_DIR/check_tx_result_propagation.sh"
   "$TEST_DIR/check_radio_health_guards.sh"
   "$TEST_DIR/test_rf_packet"

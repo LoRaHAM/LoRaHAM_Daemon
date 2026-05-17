@@ -148,6 +148,7 @@
 #include "client_set.h"
 #include "client_slot.h"
 #include "radio_channel.h"
+#include "radio_controller.h"
 #include "config_dispatch.h"
 #include "config_stream.h"
 
@@ -235,6 +236,14 @@ RadioChannelRuntime runtime_868;
 #define PIN_433 13
 #define PIN_868 19
 
+/* --- Radio controller skeleton ------------------------------------------ */
+// Noch nicht autoritativ: die bestehende Logik nutzt weiter die Legacy-Globals.
+void setFlag433(void);
+void setFlag868(void);
+
+RadioController<SX1278> radio_controller_433;
+RadioController<RFM95> radio_controller_868;
+
 // --- LoRa Setup ---
 PiHal* hal_433 = nullptr;
 Module* mod_433 = nullptr;
@@ -314,6 +323,52 @@ static unsigned long rx_drop_868 = 0;
 // Umschalten nur durch explizites "SET MODE=FSK" bzw. "SET MODE=LORA"
 volatile RadioMode_t mode_433 = RADIO_MODE_LORA;
 volatile RadioMode_t mode_868 = RADIO_MODE_LORA;
+
+static void daemon_radio_controller_init(void)
+{
+    radio_controller_init(&radio_controller_433,
+                          RADIO_BAND_433,
+                          "433",
+                          false,
+                          setFlag433,
+                          PIN_433);
+    radio_controller_init(&radio_controller_868,
+                          RADIO_BAND_868,
+                          "868",
+                          true,
+                          setFlag868,
+                          PIN_868);
+}
+
+static void daemon_radio_controller_sync_legacy_pointers(void)
+{
+    radio_controller_433.hal = hal_433;
+    radio_controller_433.mod = mod_433;
+    radio_controller_433.radio = radio_433;
+
+    radio_controller_868.hal = hal_868;
+    radio_controller_868.mod = mod_868;
+    radio_controller_868.radio = radio_868;
+}
+
+static void daemon_radio_controller_sync_legacy_state(void)
+{
+    radio_controller_433.health = radio_health_433;
+    radio_controller_433.mode = mode_433;
+    radio_controller_433.received = receivedFlag433;
+    radio_controller_433.tx_busy = txBusy433;
+    radio_controller_433.cad_active = cad433_active;
+    radio_controller_433.getrssi_active = getrssi_433_active;
+    radio_controller_433.rx_drops = rx_drop_433;
+
+    radio_controller_868.health = radio_health_868;
+    radio_controller_868.mode = mode_868;
+    radio_controller_868.received = receivedFlag868;
+    radio_controller_868.tx_busy = txBusy868;
+    radio_controller_868.cad_active = cad868_active;
+    radio_controller_868.getrssi_active = getrssi_868_active;
+    radio_controller_868.rx_drops = rx_drop_868;
+}
 
 // --- Callback für 868 ---
 void setFlag868(void) {
@@ -558,11 +613,13 @@ void lora_init() {
 
     radio_health_433 = RADIO_HEALTH_UNINITIALIZED;
     radio_health_868 = RADIO_HEALTH_UNINITIALIZED;
+    daemon_radio_controller_sync_legacy_state();
 
     if (h < 0) {
         printf("[GPIO] Fehler: gpiochip0 konnte nicht geöffnet werden!\n");
         radio_health_433 = RADIO_HEALTH_FAILED;
         radio_health_868 = RADIO_HEALTH_FAILED;
+        daemon_radio_controller_sync_legacy_state();
         return;
     }
 
@@ -575,6 +632,8 @@ void lora_init() {
     hal_868   = new PiHal(0);
     mod_868   = new Module(hal_868, 7, 16, 6, 12);
     radio_868 = new RFM95(mod_868);
+
+    daemon_radio_controller_sync_legacy_pointers();
 
     int state_433 = radio_433->begin();
     if (state_433 == RADIOLIB_ERR_NONE) {
@@ -678,6 +737,8 @@ void lora_init() {
         printf("[868] RX nicht gestartet: %s\n",
                radio_health_name(radio_health_868));
 
+    daemon_radio_controller_sync_legacy_state();
+
     fflush(stdout);
 }
 
@@ -708,6 +769,8 @@ static void daemon_radio_io_init(void)
 
     radio_channel_open_sockets(&channel_433);
     radio_channel_open_sockets(&channel_868);
+
+    daemon_radio_controller_init();
 
     radio_channel_runtime_init(&runtime_433,
                                &mode_433,

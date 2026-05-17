@@ -34,3 +34,4 @@ core.*
 /tests/test_config_dispatch
 /tests/test_daemon_lifecycle
 /tests/test_unix_socket
+/tests/test_radio_controller_skeleton
