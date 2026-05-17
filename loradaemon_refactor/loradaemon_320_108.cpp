@@ -755,7 +755,14 @@ int main(int argc, char *argv[]) {
     lora_init();
 
     EventLoopSet event_set;
-    event_loop_init_select(&event_set);
+    // --- Event-Backend ---
+    if (event_loop_init_epoll(&event_set) == 0) {
+        printf("[Daemon] Event-Backend: epoll\n");
+    } else {
+        perror("epoll");
+        event_loop_init_select(&event_set);
+        printf("[Daemon] Event-Backend: select\n");
+    }
     EventLoopReadySet readfds;
     uint8_t buf[buf_SIZE];
     uint8_t tx_buf[buf_SIZE];  // ← NEU: nur zum Senden
@@ -808,9 +815,9 @@ int main(int argc, char *argv[]) {
         radio_channel_add_fds(&channel_433, &event_set);
         radio_channel_add_fds(&channel_868, &event_set);
 
-        // --- Select wait ---
+        // --- Event wait ---
         int ret = event_loop_wait(&event_set, &readfds, DAEMON_SELECT_TIMEOUT_USEC);
-        if(ret<0){perror("select"); continue;}
+        if(ret<0){perror("event_loop_wait"); continue;}
 
         // --- Neue Clients ---
         radio_channel_accept_ready(&channel_433, &readfds);
