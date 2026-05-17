@@ -130,12 +130,19 @@ static ConfigDispatchContext<FakeRadio> make_context(ClientSlot *slots,
                                                      RadioController<FakeRadio> *ctrl,
                                                      const char *prefix)
 {
+    ConfigDispatchLog log = {
+        NULL,
+        NULL,
+        NULL
+    };
+
     ConfigDispatchContext<FakeRadio> ctx = {
         slots,
         ctrl,
         "CONF TEST",
         prefix,
-        record_apply_config
+        record_apply_config,
+        log
     };
 
     return ctx;
