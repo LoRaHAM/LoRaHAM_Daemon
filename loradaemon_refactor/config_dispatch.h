@@ -8,6 +8,7 @@
 #include "radio_channel.h"
 
 #include <stddef.h>
+#include <errno.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <sys/types.h>
@@ -83,8 +84,16 @@ static void config_dispatch_client(int *clients,
         rx_callback
     };
 
-    ssize_t n = read(clients[index], buf, buf_SIZE - 1);
+    ssize_t n;
+
+    do {
+        n = read(clients[index], buf, buf_SIZE - 1);
+    } while(n < 0 && errno == EINTR);
+
     if(n < 0) {
+        if(errno == EAGAIN || errno == EWOULDBLOCK)
+            return;
+
         config_stream_init(&streams[index]);
         client_set_close_slot(clients, index);
         return;

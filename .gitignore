@@ -1,0 +1,18 @@
+# LoRaHAM refactor build outputs
+/loradaemon_refactor/loraham_daemon
+/loradaemon_refactor/tests/test_data_tx
+/loradaemon_refactor/tests/test_client_output_queue
+/loradaemon_refactor/tests/test_client_nonblocking
+/loradaemon_refactor/tests/test_rf_packet
+/loradaemon_refactor/tests/test_event_loop
+/loradaemon_refactor/tests/test_daemon_timing
+/loradaemon_refactor/tests/test_daemon_lifecycle
+/loradaemon_refactor/tests/test_unix_socket
+/loradaemon_refactor/tests/test_config_parser
+/loradaemon_refactor/tests/test_config_stream_buffer
+/loradaemon_refactor/tests/test_config_dispatch
+/loradaemon_refactor/tests/test_interface_baseline
+/loradaemon_refactor/tests/test_config_stream
+/loradaemon_refactor/tests/test_rssi_multiclient
+/loradaemon_refactor/tests/test_client_lifecycle
+/loradaemon_refactor/tests/test_known_issues

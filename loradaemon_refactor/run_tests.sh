@@ -61,6 +61,7 @@ fi
 tests=(
   "$TEST_DIR/test_data_tx"
   "$TEST_DIR/test_client_output_queue"
+  "$TEST_DIR/test_client_nonblocking"
   "$TEST_DIR/test_rf_packet"
   "$TEST_DIR/test_event_loop"
   "$TEST_DIR/test_daemon_timing"

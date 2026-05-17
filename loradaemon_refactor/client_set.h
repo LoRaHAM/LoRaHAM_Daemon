@@ -27,6 +27,7 @@ size_t client_output_queue_consume(ClientOutputQueue *queue, size_t len);
 /* --- Client slot handling --- */
 
 int client_set_add(int *clients, int max_clients, int fd);
+int client_set_set_nonblocking(int fd);
 int client_set_accept(int listen_fd, int *clients, int max_clients);
 void client_set_close_slot(int *clients, int index);
 void client_set_close_all(int *clients, int max_clients);

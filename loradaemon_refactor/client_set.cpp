@@ -3,6 +3,7 @@
 #include "event_loop.h"
 
 #include <errno.h>
+#include <fcntl.h>
 #include <string.h>
 #include <sys/socket.h>
 #include <unistd.h>
@@ -88,6 +89,20 @@ size_t client_output_queue_consume(ClientOutputQueue *queue, size_t len)
 
 /* --- Client slots -------------------------------------------------------- */
 
+int client_set_set_nonblocking(int fd)
+{
+    int flags = fcntl(fd, F_GETFL, 0);
+
+    if (flags < 0)
+        return -1;
+
+    if (fcntl(fd, F_SETFL, flags | O_NONBLOCK) < 0)
+        return -1;
+
+    return 0;
+}
+
+
 int client_set_add(int *clients, int max_clients, int fd)
 {
     for (int i = 0; i < max_clients; i++) {
@@ -104,9 +119,17 @@ int client_set_add(int *clients, int max_clients, int fd)
 int client_set_accept(int listen_fd, int *clients, int max_clients)
 {
     int fd = accept(listen_fd, NULL, NULL);
+    int saved_errno;
 
     if (fd < 0)
         return fd;
+
+    if (client_set_set_nonblocking(fd) != 0) {
+        saved_errno = errno;
+        close(fd);
+        errno = saved_errno;
+        return -1;
+    }
 
     if (!client_set_add(clients, max_clients, fd)) {
         close(fd);
@@ -146,9 +169,21 @@ int client_set_has_clients(int *clients, int max_clients)
 
 ssize_t client_set_read_slot(int *clients, int index, void *buf, size_t len)
 {
-    ssize_t n = read(clients[index], buf, len);
+    ssize_t n;
 
-    if (n <= 0)
+    do {
+        n = read(clients[index], buf, len);
+    } while (n < 0 && errno == EINTR);
+
+    if (n < 0) {
+        if (errno == EAGAIN || errno == EWOULDBLOCK)
+            return n;
+
+        client_set_close_slot(clients, index);
+        return n;
+    }
+
+    if (n == 0)
         client_set_close_slot(clients, index);
 
     return n;
