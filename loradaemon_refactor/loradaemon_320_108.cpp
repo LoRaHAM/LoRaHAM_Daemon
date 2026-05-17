@@ -406,9 +406,9 @@ static bool lora_send_valid_band(int band)
 static volatile RadioHealth *daemon_radio_health_ptr(int band)
 {
     if (band == 433)
-        return &radio_health_433;
+        return radio_controller_health_ptr(&radio_controller_433);
 
-    return &radio_health_868;
+    return radio_controller_health_ptr(&radio_controller_868);
 }
 
 static RadioHealth daemon_radio_health(int band)
@@ -1149,9 +1149,9 @@ static void daemon_print_ascii_bytes(const uint8_t *buf, int len)
 static const char *daemon_band_tag(int band)
 {
     if (band == 433)
-        return "433";
+        return radio_controller_tag(&radio_controller_433);
 
-    return "868";
+    return radio_controller_tag(&radio_controller_868);
 }
 
 static const char *daemon_band_color(int band)
@@ -1173,9 +1173,9 @@ static RadioMode_t daemon_band_mode(int band)
 static float daemon_band_rssi(int band)
 {
     if (band == 433)
-        return radio_433->getRSSI();
+        return radio_controller_packet_rssi(&radio_controller_433);
 
-    return radio_868->getRSSI();
+    return radio_controller_packet_rssi(&radio_controller_868);
 }
 
 static void daemon_print_lora_packet(const char *band,

@@ -64,4 +64,52 @@ static inline void radio_controller_init(RadioController<RadioT> *ctrl,
     ctrl->led_pin = led_pin;
 }
 
+template<typename RadioT>
+static inline int radio_controller_band_number(const RadioController<RadioT> *ctrl)
+{
+    return ctrl ? (int)ctrl->band : 0;
+}
+
+template<typename RadioT>
+static inline const char *radio_controller_tag(const RadioController<RadioT> *ctrl)
+{
+    if (!ctrl || !ctrl->tag)
+        return "?";
+
+    return ctrl->tag;
+}
+
+template<typename RadioT>
+static inline volatile RadioHealth *radio_controller_health_ptr(RadioController<RadioT> *ctrl)
+{
+    return ctrl ? &ctrl->health : nullptr;
+}
+
+template<typename RadioT>
+static inline RadioHealth radio_controller_health(const RadioController<RadioT> *ctrl)
+{
+    return ctrl ? ctrl->health : RADIO_HEALTH_FAILED;
+}
+
+template<typename RadioT>
+static inline bool radio_controller_ready(const RadioController<RadioT> *ctrl)
+{
+    return radio_health_is_ready(radio_controller_health(ctrl));
+}
+
+template<typename RadioT>
+static inline RadioMode_t radio_controller_mode(const RadioController<RadioT> *ctrl)
+{
+    return ctrl ? ctrl->mode : RADIO_MODE_LORA;
+}
+
+template<typename RadioT>
+static inline float radio_controller_packet_rssi(RadioController<RadioT> *ctrl)
+{
+    if (!ctrl || !ctrl->radio)
+        return -200.0f;
+
+    return ctrl->radio->getRSSI();
+}
+
 #endif
