@@ -87,6 +87,39 @@ size_t client_output_queue_consume(ClientOutputQueue *queue, size_t len)
     return used;
 }
 
+ssize_t client_output_queue_flush_fd(int fd, ClientOutputQueue *queue)
+{
+    ssize_t total = 0;
+
+    if (!queue) {
+        errno = EINVAL;
+        return -1;
+    }
+
+    while (queue->len > 0) {
+        ssize_t n = send(fd, queue->data, queue->len, MSG_NOSIGNAL);
+
+        if (n > 0) {
+            client_output_queue_consume(queue, (size_t)n);
+            total += n;
+            continue;
+        }
+
+        if (n < 0 && errno == EINTR)
+            continue;
+
+        if (n < 0 && (errno == EAGAIN || errno == EWOULDBLOCK))
+            return total;
+
+        if (n == 0)
+            errno = EPIPE;
+
+        return -1;
+    }
+
+    return total;
+}
+
 /* --- Client slots -------------------------------------------------------- */
 
 int client_set_set_nonblocking(int fd)
@@ -103,6 +136,21 @@ int client_set_set_nonblocking(int fd)
 }
 
 
+static int client_set_add_with_output(int *clients, ClientOutputQueue *queues, int max_clients, int fd)
+{
+    for (int i = 0; i < max_clients; i++) {
+        if (clients[i] == 0) {
+            clients[i] = fd;
+            if (queues)
+                client_output_queue_reset(&queues[i]);
+            return 1;
+        }
+    }
+
+    return 0;
+}
+
+
 int client_set_add(int *clients, int max_clients, int fd)
 {
     for (int i = 0; i < max_clients; i++) {
@@ -113,6 +161,31 @@ int client_set_add(int *clients, int max_clients, int fd)
     }
 
     return 0;
+}
+
+
+int client_set_accept_with_output(int listen_fd, int *clients, ClientOutputQueue *queues, int max_clients)
+{
+    int fd = accept(listen_fd, NULL, NULL);
+    int saved_errno;
+
+    if (fd < 0)
+        return fd;
+
+    if (client_set_set_nonblocking(fd) != 0) {
+        saved_errno = errno;
+        close(fd);
+        errno = saved_errno;
+        return -1;
+    }
+
+    if (!client_set_add_with_output(clients, queues, max_clients, fd)) {
+        close(fd);
+        errno = EMFILE;
+        return -1;
+    }
+
+    return fd;
 }
 
 
@@ -148,10 +221,24 @@ void client_set_close_slot(int *clients, int index)
     clients[index] = 0;
 }
 
+void client_set_close_slot_with_output(int *clients, ClientOutputQueue *queues, int index)
+{
+    client_set_close_slot(clients, index);
+
+    if (queues)
+        client_output_queue_reset(&queues[index]);
+}
+
 void client_set_close_all(int *clients, int max_clients)
 {
     for (int i = 0; i < max_clients; i++)
         client_set_close_slot(clients, i);
+}
+
+void client_set_close_all_with_output(int *clients, ClientOutputQueue *queues, int max_clients)
+{
+    for (int i = 0; i < max_clients; i++)
+        client_set_close_slot_with_output(clients, queues, i);
 }
 
 
@@ -236,6 +323,29 @@ static ssize_t client_set_send_all(int fd, const uint8_t *buf, size_t len)
     return (ssize_t)sent;
 }
 
+void client_set_flush_output_slot(int *clients, ClientOutputQueue *queues, int index)
+{
+    if (!queues)
+        return;
+
+    if (clients[index] <= 0) {
+        client_output_queue_reset(&queues[index]);
+        return;
+    }
+
+    if (client_output_queue_flush_fd(clients[index], &queues[index]) < 0)
+        client_set_close_slot_with_output(clients, queues, index);
+}
+
+void client_set_flush_outputs(int *clients, ClientOutputQueue *queues, int max_clients)
+{
+    if (!queues)
+        return;
+
+    for (int i = 0; i < max_clients; i++)
+        client_set_flush_output_slot(clients, queues, i);
+}
+
 /* --- Client broadcasts --------------------------------------------------- */
 // Statusmeldungen an alle verbundenen Clients senden.
 
@@ -267,4 +377,37 @@ void client_set_broadcast_bytes(int *clients, int max_clients, const uint8_t *bu
             client_set_send_all(clients[i], buf, len) < 0)
             client_set_close_slot(clients, i);
     }
+}
+
+
+void client_set_broadcast_bytes_queued(int *clients, ClientOutputQueue *queues, int max_clients, const uint8_t *buf, size_t len)
+{
+    if (len == 0)
+        return;
+
+    if (!buf || !queues)
+        return;
+
+    for (int i = 0; i < max_clients; i++) {
+        if (clients[i] <= 0) {
+            client_output_queue_reset(&queues[i]);
+            continue;
+        }
+
+        if (!client_output_queue_append(&queues[i], buf, len)) {
+            client_set_close_slot_with_output(clients, queues, i);
+            continue;
+        }
+
+        client_set_flush_output_slot(clients, queues, i);
+    }
+}
+
+void client_set_broadcast_queued(int *clients, ClientOutputQueue *queues, int max_clients, const char *msg)
+{
+    if (!msg)
+        return;
+
+    client_set_broadcast_bytes_queued(clients, queues, max_clients,
+                                      (const uint8_t *)msg, strlen(msg));
 }

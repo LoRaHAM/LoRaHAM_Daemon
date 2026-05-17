@@ -16,3 +16,4 @@
 /loradaemon_refactor/tests/test_rssi_multiclient
 /loradaemon_refactor/tests/test_client_lifecycle
 /loradaemon_refactor/tests/test_known_issues
+/loradaemon_refactor/tests/test_client_queued_broadcast

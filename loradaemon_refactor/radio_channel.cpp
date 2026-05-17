@@ -18,7 +18,9 @@ void radio_channel_io_init(RadioChannelIo *ch,
                            int *data_listen_fd,
                            int *conf_listen_fd,
                            int *data_clients,
-                           int *conf_clients)
+                           int *conf_clients,
+                           ClientOutputQueue *data_output_queues,
+                           ClientOutputQueue *conf_output_queues)
 {
     ch->band = band;
     ch->data_socket_path = data_socket_path;
@@ -27,6 +29,8 @@ void radio_channel_io_init(RadioChannelIo *ch,
     ch->conf_listen_fd = conf_listen_fd;
     ch->data_clients = data_clients;
     ch->conf_clients = conf_clients;
+    ch->data_output_queues = data_output_queues;
+    ch->conf_output_queues = conf_output_queues;
 }
 
 
@@ -43,10 +47,16 @@ void radio_channel_add_fds(RadioChannelIo *ch, EventLoopSet *set)
 void radio_channel_accept_ready(RadioChannelIo *ch, const EventLoopReadySet *ready)
 {
     if(event_loop_ready_fd(ready, *ch->data_listen_fd))
-        client_set_accept(*ch->data_listen_fd, ch->data_clients, MAX_CLIENTS);
+        client_set_accept_with_output(*ch->data_listen_fd,
+                                      ch->data_clients,
+                                      ch->data_output_queues,
+                                      MAX_CLIENTS);
 
     if(event_loop_ready_fd(ready, *ch->conf_listen_fd))
-        client_set_accept(*ch->conf_listen_fd, ch->conf_clients, MAX_CLIENTS);
+        client_set_accept_with_output(*ch->conf_listen_fd,
+                                      ch->conf_clients,
+                                      ch->conf_output_queues,
+                                      MAX_CLIENTS);
 }
 
 void radio_channel_open_sockets(RadioChannelIo *ch)
