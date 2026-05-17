@@ -755,6 +755,7 @@ int main(int argc, char *argv[]) {
     lora_init();
 
     EventLoopSet event_set;
+    event_loop_init_select(&event_set);
     EventLoopReadySet readfds;
     uint8_t buf[buf_SIZE];
     uint8_t tx_buf[buf_SIZE];  // ← NEU: nur zum Senden

@@ -2,8 +2,20 @@
 
 /* --- backend-neutral event-loop wrapper --- */
 
+void event_loop_init_select(EventLoopSet *set)
+{
+    set->backend = EVENT_LOOP_BACKEND_SELECT;
+    event_loop_select_reset(&set->select_backend);
+}
+
+EventLoopBackend event_loop_backend(const EventLoopSet *set)
+{
+    return set->backend;
+}
+
 void event_loop_reset(EventLoopSet *set)
 {
+    set->backend = EVENT_LOOP_BACKEND_SELECT;
     event_loop_select_reset(&set->select_backend);
 }
 

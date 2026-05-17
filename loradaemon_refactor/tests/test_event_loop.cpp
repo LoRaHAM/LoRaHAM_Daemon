@@ -141,6 +141,18 @@ static void test_select_ready_fd(void)
 
 /* --- backend-neutral wrapper --- */
 
+static void test_backend_selection(void)
+{
+    EventLoopSet set;
+
+    event_loop_init_select(&set);
+
+    expect_int("generic backend select",
+               event_loop_backend(&set) == EVENT_LOOP_BACKEND_SELECT, 1);
+    expect_int("generic init clears registered fds",
+               event_loop_has_registered_fds(&set), 0);
+}
+
 static void test_backend_neutral_aliases(void)
 {
     EventLoopSet set;
@@ -210,6 +222,7 @@ int main(int argc, char **argv)
     test_select_wait_readable_pipe();
     test_select_wait_timeout();
     test_select_ready_fd();
+    test_backend_selection();
     test_backend_neutral_aliases();
     test_backend_neutral_wait_readable_pipe();
 
