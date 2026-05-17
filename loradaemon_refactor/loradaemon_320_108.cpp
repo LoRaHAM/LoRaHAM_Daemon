@@ -663,7 +663,7 @@ static void daemon_radio_io_init(void)
 }
 
 /* --- Data client TX handling --- */
-
+/* --- DATA TX structure: context, CAD guard and send callback -------------- */
 
 typedef struct {
     const char *tag;
@@ -674,6 +674,7 @@ typedef struct {
 #define DATA_TX_CAD_MAX_WAIT_TICKS 300
 #define DATA_TX_CAD_SLEEP_USEC 10000
 
+/* --- DATA TX helpers: modem status, LED and CAD wait ---------------------- */
 static int data_tx_modem_status(int band)
 {
     return (band == 433)
@@ -707,6 +708,7 @@ static int data_tx_wait_channel_free(DataTxDaemonContext *tx)
     return 1;
 }
 
+/* --- DATA TX callback: send one queued chunk ----------------------------- */
 static int send_data_chunk(uint8_t *chunk, size_t len, size_t offset, void *ctx)
 {
     DataTxDaemonContext *tx = (DataTxDaemonContext *)ctx;
@@ -727,7 +729,7 @@ static int send_data_chunk(uint8_t *chunk, size_t len, size_t offset, void *ctx)
 }
 
 /* --- CONFIG dispatch wiring --- */
-
+/* --- Context factories: DATA TX and CONFIG dispatch ----------------------- */
 
 static DataTxDaemonContext daemon_data_tx_context(const char *tag,
                                                    int band,
@@ -769,6 +771,7 @@ static ConfigDispatchContext<RFM95> daemon_config_868_context(void)
 
     return ctx;
 }
+/* --- CONFIG dispatch execution ------------------------------------------- */
 static void process_config_dispatch(ConfigDispatchContext<SX1278> *config_433_ctx,
                                     ConfigDispatchContext<RFM95> *config_868_ctx,
                                     const EventLoopReadySet *readfds,
@@ -778,6 +781,7 @@ static void process_config_dispatch(ConfigDispatchContext<SX1278> *config_433_ct
     config_dispatch_context<RFM95>(config_868_ctx, MAX_CLIENTS, readfds, buf);
 }
 
+/* --- Ready sockets: accept DATA clients and CONFIG clients ---------------- */
 static void daemon_process_ready_sockets(ConfigDispatchContext<SX1278> *config_433_ctx,
                                          ConfigDispatchContext<RFM95> *config_868_ctx,
                                          DataTxDaemonContext *data_tx_433_ctx,
@@ -797,6 +801,7 @@ static void daemon_process_ready_sockets(ConfigDispatchContext<SX1278> *config_4
 }
 
 
+/* --- CAD status: LoRa activity and CONFIG broadcasts ---------------------- */
 static void daemon_process_cad_status(int band)
 {
     if (band == 433) {
@@ -845,6 +850,7 @@ static void daemon_process_cad_status(int band)
         }
     }
 }
+/* --- RSSI streaming ------------------------------------------------------- */
 /*
  * GETRSSI Streaming: 10 Hz RSSI an Conf-Clients.
  *
@@ -894,6 +900,7 @@ static void daemon_process_rssi_stream(DaemonDeadlineTimer *rssi_timer)
     }
 }
 
+/* --- CAD/RSSI wrapper: keep polling order readable ------------------------ */
 static void daemon_process_cad_rssi(DaemonDeadlineTimer *rssi_timer)
 {
     daemon_process_cad_status(433);
@@ -901,6 +908,7 @@ static void daemon_process_cad_rssi(DaemonDeadlineTimer *rssi_timer)
     daemon_process_rssi_stream(rssi_timer);
 }
 
+/* --- Main loop logging ---------------------------------------------------- */
 static void daemon_log_loop_start(void)
 {
     printf("[Daemon] Starte Polling-Loop für LoRa und Sockets\n");
@@ -1204,6 +1212,7 @@ static void daemon_process_radio_polling(DaemonDeadlineTimer *rssi_timer,
     daemon_process_cad_rssi(rssi_timer);
 }
 
+/* --- Startup helpers: signals and command-line parsing -------------------- */
 static void daemon_ignore_sigpipe(void)
 {
     // SIGPIPE ignorieren: write() auf geschlossenen Socket crasht sonst den Daemon
@@ -1231,6 +1240,7 @@ static bool daemon_parse_args(int argc, char *argv[])
 }
 
 // --- Unix socket setup moved to unix_socket.cpp ---
+/* --- Main entry: startup, contexts and polling loop ----------------------- */
 
 int main(int argc, char *argv[]) {
     daemon_ignore_sigpipe();
