@@ -1160,6 +1160,10 @@ int main(int argc, char *argv[]) {
 
     printf("[Daemon] Stop requested\n");
     event_loop_close(&event_set);
+    client_set_close_all(client_data433, MAX_CLIENTS);
+    client_set_close_all(client_data868, MAX_CLIENTS);
+    client_set_close_all(client_conf433, MAX_CLIENTS);
+    client_set_close_all(client_conf868, MAX_CLIENTS);
 
     close(data433_fd); close(data868_fd); close(conf433_fd); close(conf868_fd);
     unlink(DATA433_SOCKET); unlink(DATA868_SOCKET);

@@ -40,6 +40,12 @@ void client_set_close_slot(int *clients, int index)
     clients[index] = 0;
 }
 
+void client_set_close_all(int *clients, int max_clients)
+{
+    for (int i = 0; i < max_clients; i++)
+        client_set_close_slot(clients, i);
+}
+
 
 int client_set_has_clients(int *clients, int max_clients)
 {

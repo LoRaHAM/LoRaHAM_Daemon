@@ -13,6 +13,7 @@
 int client_set_add(int *clients, int max_clients, int fd);
 int client_set_accept(int listen_fd, int *clients, int max_clients);
 void client_set_close_slot(int *clients, int index);
+void client_set_close_all(int *clients, int max_clients);
 ssize_t client_set_read_slot(int *clients, int index, void *buf, size_t len);
 void client_set_add_to_event_loop(int *clients, int max_clients, EventLoopSet *set);
 int client_set_slot_ready(int *clients, int index, const EventLoopReadySet *ready);

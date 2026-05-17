@@ -4,6 +4,8 @@
 #include <stdio.h>
 #include <stdint.h>
 #include <string.h>
+#include <errno.h>
+#include <poll.h>
 #include <unistd.h>
 #include <sys/socket.h>
 
@@ -111,6 +113,64 @@ static void test_chunk_iterator_stop(void)
 }
 
 
+
+/* --- Client close helpers --- */
+
+static int wait_peer_closed(int fd)
+{
+    struct pollfd pfd;
+    char buf[8];
+
+    pfd.fd = fd;
+    pfd.events = POLLIN;
+    pfd.revents = 0;
+
+    if (poll(&pfd, 1, 1000) <= 0)
+        return 0;
+
+    if (pfd.revents & (POLLHUP | POLLERR | POLLNVAL))
+        return 1;
+
+    if (pfd.revents & POLLIN) {
+        ssize_t n = read(fd, buf, sizeof(buf));
+        if (n == 0)
+            return 1;
+        if (n < 0 && errno != EINTR)
+            return 1;
+    }
+
+    return 0;
+}
+
+static void test_client_set_close_all(void)
+{
+    int a[2];
+    int b[2];
+    int clients[4] = {0};
+
+    if (socketpair(AF_UNIX, SOCK_STREAM, 0, a) != 0 ||
+        socketpair(AF_UNIX, SOCK_STREAM, 0, b) != 0) {
+        g_fail++;
+        printf("[FAIL] close all socketpair setup\n");
+        return;
+    }
+
+    clients[0] = a[1];
+    clients[2] = b[1];
+
+    client_set_close_all(clients, 4);
+
+    expect_int("close all slot 0", clients[0], 0);
+    expect_int("close all slot 1", clients[1], 0);
+    expect_int("close all slot 2", clients[2], 0);
+    expect_int("close all slot 3", clients[3], 0);
+    expect_int("close all peer A closed", wait_peer_closed(a[0]), 1);
+    expect_int("close all peer B closed", wait_peer_closed(b[0]), 1);
+
+    close(a[0]);
+    close(b[0]);
+}
+
 /* --- DATA TX dispatch via event loop --- */
 
 static void test_process_clients_backend(const char *name, int use_epoll)
@@ -202,6 +262,7 @@ int main(int argc, char **argv)
     test_chunk_size();
     test_chunk_iterator();
     test_chunk_iterator_stop();
+    test_client_set_close_all();
     test_process_clients_epoll();
     test_process_clients_select();
 
