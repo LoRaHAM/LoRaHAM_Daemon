@@ -1,6 +1,7 @@
 # LoRaHAM_Daemon
 
 ## Changelog
+- Refactor: DATA-TX CAD-Abfrage liest den Modemstatus über den RadioController.
 - Refactor: Legacy-Radio-Globals und Kompatibilitäts-Spiegelung entfernt.
 - Refactor: TX-Sendepfad nutzt den RadioController; lora_send bleibt als Wrapper erhalten.
 - Refactor: RX-Paketpfad nutzt den RadioController mit Legacy-Spiegelung.

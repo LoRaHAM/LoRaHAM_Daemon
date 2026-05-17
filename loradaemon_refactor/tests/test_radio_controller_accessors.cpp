@@ -9,6 +9,11 @@ struct TestRadio {
     {
         return -87.25f;
     }
+
+    int getModemStatus(void)
+    {
+        return 0x11;
+    }
 };
 
 static void test_callback(void)
@@ -41,6 +46,8 @@ int main(void)
     assert(strcmp(tx_view.tag, "868") == 0);
     assert(tx_view.health == &ctrl.health);
     assert(tx_view.mode == &ctrl.mode);
+    assert(tx_view.modem_status_ctx == &ctrl);
+    assert(tx_view.read_modem_status != nullptr);
 
     *health = RADIO_HEALTH_READY;
     assert(radio_controller_health(&ctrl) == RADIO_HEALTH_READY);
@@ -48,6 +55,7 @@ int main(void)
 
     ctrl.radio = &radio;
     assert(fabs(radio_controller_packet_rssi(&ctrl) - (-87.25f)) < 0.001f);
+    assert(tx_view.read_modem_status(tx_view.modem_status_ctx) == 0x11);
 
     ctrl.radio = nullptr;
     assert(radio_controller_packet_rssi(&ctrl) == -200.0f);
@@ -64,6 +72,9 @@ int main(void)
     assert(strcmp(null_tx_view.tag, "?") == 0);
     assert(null_tx_view.health == nullptr);
     assert(null_tx_view.mode == nullptr);
+    assert(null_tx_view.modem_status_ctx == nullptr);
+    assert(null_tx_view.read_modem_status != nullptr);
+    assert(null_tx_view.read_modem_status(null_tx_view.modem_status_ctx) == 0);
 
     return 0;
 }

@@ -698,14 +698,12 @@ typedef struct {
 #define DATA_TX_CAD_SLEEP_USEC 10000
 
 /* --- DATA TX hardware helpers -------------------------------------------- */
-static int data_tx_modem_status(int band)
+static int data_tx_modem_status(DataTxDaemonContext *tx)
 {
-    if (!daemon_radio_ready(band))
+    if (!tx->radio.read_modem_status)
         return 0;
 
-    return (band == 433)
-        ? radio_controller_433.radio->getModemStatus()
-        : radio_controller_868.radio->getModemStatus();
+    return tx->radio.read_modem_status(tx->radio.modem_status_ctx);
 }
 
 static void data_tx_led(int band, int state)
@@ -724,7 +722,7 @@ static int data_tx_wait_channel_free(DataTxDaemonContext *tx)
         return 0;
 
     while (cad_wait < DATA_TX_CAD_MAX_WAIT_TICKS) {
-        if ((data_tx_modem_status(tx->radio.band) & 0x01) == 0)
+        if ((data_tx_modem_status(tx) & 0x01) == 0)
             return 0;
 
         usleep(DATA_TX_CAD_SLEEP_USEC);
