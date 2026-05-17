@@ -9,6 +9,7 @@
 #include <stdio.h>
 #include <RadioLib.h>
 #include "config_parser.h"
+#include "config_value.h"
 
 /* --- CONFIG apply callback --- */
 
@@ -63,13 +64,13 @@ void parse_and_apply_config_generic(RadioT &radio, const char *tag, const char *
         const std::string &val = kv.second;
 
         if(key == "GETRSSI") {
-            int v = atoi(val.c_str());
-            if(v == 0 || v == 1) {
+            int v = 0;
+            if(config_value_parse_bool01_exact(val, &v)) {
                 getrssi_flag = (v != 0);
                 if(v == 1) printf(" GETRSSI=[92m1[0m");
                 else       printf(" GETRSSI=[92m0[0m");
             } else {
-                printf(" GETRSSI=[91;5m%d[0m", v);
+                printf(" GETRSSI=[91;5m%s[0m", val.c_str());
             }
         } else {
             tokens.push_back(kv);

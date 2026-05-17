@@ -75,6 +75,7 @@ tests=(
   "$TEST_DIR/test_config_parser"
   "$TEST_DIR/test_config_stream_buffer"
   "$TEST_DIR/test_config_value"
+  "$TEST_DIR/check_config_apply_strict_parsing.sh"
   "$TEST_DIR/test_config_dispatch"
   "$TEST_DIR/test_interface_baseline"
   "$TEST_DIR/test_config_stream"
