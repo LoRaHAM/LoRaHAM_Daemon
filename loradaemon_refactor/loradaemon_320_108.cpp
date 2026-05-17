@@ -894,6 +894,18 @@ static void daemon_process_rssi_stream(DaemonDeadlineTimer *rssi_timer)
     }
 }
 
+static void daemon_process_cad_rssi(DaemonDeadlineTimer *rssi_timer)
+{
+    daemon_process_cad_status(433);
+    daemon_process_cad_status(868);
+    daemon_process_rssi_stream(rssi_timer);
+}
+
+static void daemon_log_loop_start(void)
+{
+    printf("[Daemon] Starte Polling-Loop für LoRa und Sockets\n");
+}
+
 static void daemon_ignore_sigpipe(void)
 {
     // SIGPIPE ignorieren: write() auf geschlossenen Socket crasht sonst den Daemon
@@ -952,23 +964,21 @@ int main(int argc, char *argv[]) {
     ConfigDispatchContext<SX1278> config_433_ctx = daemon_config_433_context();
     ConfigDispatchContext<RFM95> config_868_ctx = daemon_config_868_context();
 
-
-    printf("[Daemon] Starte Polling-Loop für LoRa und Sockets\n");
-
+    daemon_log_loop_start();
 
     while (!daemon_lifecycle_stop_requested()) {
 
         // --- Event wait ---
         int ret = daemon_wait_for_events(&event_set, &readfds);
-        if(ret<0){perror("event_loop_wait"); continue;}
+        if (ret < 0) {
+            perror("event_loop_wait");
+            continue;
+        }
 
         // --- Socket Clients bearbeiten ---
         daemon_process_ready_sockets(&config_433_ctx, &config_868_ctx,
                                     &data_tx_433_ctx, &data_tx_868_ctx,
                                     &readfds, buf);
-
-
-
 
                         // --- LoRa/FSK Polling 433 (kurzer Timeout 5ms, Non-Blocking) ---
                         if(receivedFlag433){
@@ -1182,9 +1192,7 @@ int main(int argc, char *argv[]) {
 
 
         // --- CAD/RSSI Überwachung ---
-        daemon_process_cad_status(433);
-        daemon_process_cad_status(868);
-        daemon_process_rssi_stream(&rssi_timer);
+        daemon_process_cad_rssi(&rssi_timer);
 
     } // while stop not requested
 
