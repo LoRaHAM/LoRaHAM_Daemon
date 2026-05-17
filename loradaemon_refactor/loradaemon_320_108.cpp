@@ -1,4 +1,5 @@
-/****************************************************************************** * Copyright (C) 2026  [LoRaHAM / Alexander Walter]
+/******************************************************************************
+ * Copyright (C) 2026  [LoRaHAM / Alexander Walter]
  * * LICENSE: GNU General Public License v3 (GPLv3) with the following terms:
  * 1. PRIVATE/HOBBY: Free use, modification, and redistribution for non-commercial
  * purposes is permitted.
