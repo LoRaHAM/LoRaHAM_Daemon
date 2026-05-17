@@ -192,5 +192,6 @@ The original project is licensed under GNU GPL v3 with additional conditions sta
 
 ## Changelog
 
-- Validate TX packet buffers and payload length before copying or transmitting.
-- Drop RX packets when RadioLib reports read/CRC/header errors; keep per-band drop counters with rate-limited logging.
+- Fix FSK SHAPING parsing: BT values now map to RadioLib constants instead of truncating to 0.
+- Fix TX bounds checks: invalid or oversized packets are rejected before copy/transmit.
+- Fix RX error forwarding: RadioLib CRC/header/read errors are dropped and counted.

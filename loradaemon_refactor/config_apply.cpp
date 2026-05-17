@@ -1,5 +1,110 @@
 #include "config_apply.h"
 
+#include <ctype.h>
+#include <math.h>
+
+/* --- CONFIG helpers ------------------------------------------------------ */
+
+static std::string config_trim_ascii(const std::string &value)
+{
+    size_t begin = 0;
+    while (begin < value.size() && isspace((unsigned char)value[begin]))
+        begin++;
+
+    size_t end = value.size();
+    while (end > begin && isspace((unsigned char)value[end - 1]))
+        end--;
+
+    return value.substr(begin, end - begin);
+}
+
+static std::string config_lower_ascii(std::string value)
+{
+    for (size_t i = 0; i < value.size(); i++)
+        value[i] = (char)tolower((unsigned char)value[i]);
+
+    return value;
+}
+
+static bool config_float_equal(float value, float expected)
+{
+    return fabsf(value - expected) < 0.0001f;
+}
+
+static bool config_parse_float_exact(const std::string &value, float *out)
+{
+    if (!out)
+        return false;
+
+    char *end = NULL;
+    const char *start = value.c_str();
+    float parsed = strtof(start, &end);
+
+    if (end == start)
+        return false;
+
+    while (*end != '\0' && isspace((unsigned char)*end))
+        end++;
+
+    if (*end != '\0')
+        return false;
+
+    *out = parsed;
+    return true;
+}
+
+static bool parse_fsk_shaping(const std::string &val,
+                              uint8_t *shaping,
+                              const char **label)
+{
+    if (!shaping || !label)
+        return false;
+
+    std::string norm = config_lower_ascii(config_trim_ascii(val));
+
+    if (norm == "off" || norm == "none") {
+        *shaping = RADIOLIB_SHAPING_NONE;
+        *label = "0.0";
+        return true;
+    }
+
+    float value = 0.0f;
+    if (!config_parse_float_exact(norm, &value))
+        return false;
+
+    if (config_float_equal(value, 0.0f)) {
+        *shaping = RADIOLIB_SHAPING_NONE;
+        *label = "0.0";
+        return true;
+    }
+
+    if (config_float_equal(value, 0.3f)) {
+        *shaping = RADIOLIB_SHAPING_0_3;
+        *label = "0.3";
+        return true;
+    }
+
+    if (config_float_equal(value, 0.5f)) {
+        *shaping = RADIOLIB_SHAPING_0_5;
+        *label = "0.5";
+        return true;
+    }
+
+    if (config_float_equal(value, 0.7f)) {
+        *shaping = RADIOLIB_SHAPING_0_7;
+        *label = "0.7";
+        return true;
+    }
+
+    if (config_float_equal(value, 1.0f)) {
+        *shaping = RADIOLIB_SHAPING_1_0;
+        *label = "1.0";
+        return true;
+    }
+
+    return false;
+}
+
 /* --- CONFIG parameter apply --------------------------------------------- */
 
 void apply_lora_param(SX1278 &radio, const char *tag, const std::string &key, const std::string &val) {
@@ -291,11 +396,16 @@ void apply_fsk_param(SX1278 &radio, const char *tag, const std::string &key, con
         }
     }
     if(key=="SHAPING") {
-        // Gauss-Filter Shaping: 0.0=aus, 0.3, 0.5, 1.0
-        float sh = (float)atof(val.c_str());
-        state = radio.setDataShaping(sh);
-        if(state == 0) printf(" SHAPING=\033[92m%.1f\033[0m", sh);
-        else           printf(" SHAPING=\033[91;5m%.1f\033[0m", sh);
+        // Gauss-Filter Shaping: 0.0=aus, 0.3, 0.5, 0.7, 1.0
+        uint8_t sh = 0;
+        const char *sh_label = NULL;
+        if(parse_fsk_shaping(val, &sh, &sh_label)) {
+            state = radio.setDataShaping(sh);
+            if(state == 0) printf(" SHAPING=\033[92m%s\033[0m", sh_label);
+            else           printf(" SHAPING=\033[91;5m%s\033[0m", sh_label);
+        } else {
+            printf(" SHAPING=\033[91;5m%s\033[0m", val.c_str());
+        }
     }
     if(key=="ENCODING") {
         // 0=NRZ, 1=Manchester, 2=Whitening
@@ -397,10 +507,15 @@ void apply_fsk_param(RFM95 &radio, const char *tag, const std::string &key, cons
         }
     }
     if(key=="SHAPING") {
-        float sh = (float)atof(val.c_str());
-        state = radio.setDataShaping(sh);
-        if(state == 0) printf(" SHAPING=\033[92m%.1f\033[0m", sh);
-        else           printf(" SHAPING=\033[91;5m%.1f\033[0m", sh);
+        uint8_t sh = 0;
+        const char *sh_label = NULL;
+        if(parse_fsk_shaping(val, &sh, &sh_label)) {
+            state = radio.setDataShaping(sh);
+            if(state == 0) printf(" SHAPING=\033[92m%s\033[0m", sh_label);
+            else           printf(" SHAPING=\033[91;5m%s\033[0m", sh_label);
+        } else {
+            printf(" SHAPING=\033[91;5m%s\033[0m", val.c_str());
+        }
     }
     if(key=="ENCODING") {
         uint8_t enc = (uint8_t)atoi(val.c_str());
