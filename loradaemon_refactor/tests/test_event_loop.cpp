@@ -110,19 +110,19 @@ static void test_backend_names(void)
                strcmp(event_loop_backend_name(EVENT_LOOP_BACKEND_EPOLL), "epoll") == 0, 1);
 }
 
-static void test_backend_default_init(void)
+static void test_event_loop_init(void)
 {
     EventLoopSet set;
     int ret;
 
     ret = event_loop_init(&set);
 
-    expect_int("default backend init uses epoll", ret, 0);
-    expect_int("default backend epoll",
+    expect_int("event-loop init uses epoll", ret, 0);
+    expect_int("event-loop init backend epoll",
                event_loop_backend(&set) == EVENT_LOOP_BACKEND_EPOLL, 1);
-    expect_int("default backend name epoll",
+    expect_int("event-loop init backend name epoll",
                strcmp(event_loop_backend_name(event_loop_backend(&set)), "epoll") == 0, 1);
-    expect_int("default backend starts empty",
+    expect_int("event-loop init starts empty",
                event_loop_has_registered_fds(&set), 0);
 
     event_loop_close(&set);
@@ -143,7 +143,7 @@ static void test_backend_reset_preserves_epoll(void)
         close(fds[0]);
         close(fds[1]);
         g_fail++;
-        printf("[FAIL] reset default epoll init\n");
+        printf("[FAIL] reset event-loop init\n");
         return;
     }
 
@@ -178,7 +178,7 @@ static void test_backend_close_epoll_clears_state(void)
         close(fds[0]);
         close(fds[1]);
         g_fail++;
-        printf("[FAIL] close default epoll init\n");
+        printf("[FAIL] close event-loop init\n");
         return;
     }
 
@@ -216,7 +216,7 @@ static void test_backend_neutral_aliases(void)
         close(fds[0]);
         close(fds[1]);
         g_fail++;
-        printf("[FAIL] generic alias default init\n");
+        printf("[FAIL] generic alias event-loop init\n");
         return;
     }
 
@@ -253,7 +253,7 @@ static void test_backend_neutral_wait_readable_pipe(void)
         close(fds[0]);
         close(fds[1]);
         g_fail++;
-        printf("[FAIL] generic default init\n");
+        printf("[FAIL] generic event-loop init\n");
         return;
     }
 
@@ -295,7 +295,7 @@ int main(int argc, char **argv)
     test_epoll_wait_readable_pipe();
     test_epoll_wait_timeout();
     test_backend_names();
-    test_backend_default_init();
+    test_event_loop_init();
     test_backend_reset_preserves_epoll();
     test_backend_close_epoll_clears_state();
     test_backend_neutral_aliases();
