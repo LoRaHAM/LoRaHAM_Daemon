@@ -145,6 +145,7 @@
 
 #include "daemon_protocol.h"
 #include "daemon_timing.h"
+#include "daemon_lifecycle.h"
 #include "data_tx.h"
 #include "event_loop.h"
 #include "unix_socket.h"
@@ -760,6 +761,12 @@ int main(int argc, char *argv[]) {
         perror("epoll");
     printf("[Daemon] Event-Backend: %s\n",
            event_loop_backend_name(event_loop_backend(&event_set)));
+
+    // --- Signal-Stop ---
+    daemon_lifecycle_reset_stop();
+    if (daemon_lifecycle_install_signal_handlers() != 0)
+        perror("sigaction");
+
     EventLoopReadySet readfds;
     uint8_t buf[buf_SIZE];
     uint8_t tx_buf[buf_SIZE];  // ← NEU: nur zum Senden
@@ -806,7 +813,7 @@ int main(int argc, char *argv[]) {
     printf("[Daemon] Starte Polling-Loop für LoRa und Sockets\n");
 
 
-    while (1) {
+    while (!daemon_lifecycle_stop_requested()) {
 
         event_loop_reset(&event_set);
         radio_channel_add_fds(&channel_433, &event_set);
@@ -1149,7 +1156,10 @@ int main(int argc, char *argv[]) {
                             }
                         }
 
-    } // while(1)
+    } // while stop not requested
+
+    printf("[Daemon] Stop requested\n");
+    event_loop_close(&event_set);
 
     close(data433_fd); close(data868_fd); close(conf433_fd); close(conf868_fd);
     unlink(DATA433_SOCKET); unlink(DATA868_SOCKET);

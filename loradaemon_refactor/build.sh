@@ -136,6 +136,7 @@ build_daemon() {
     "$SCRIPT_DIR/config_apply.cpp" \
     "$SCRIPT_DIR/radio_channel.cpp" \
     "$SCRIPT_DIR/daemon_timing.cpp" \
+    "$SCRIPT_DIR/daemon_lifecycle.cpp" \
     "$SCRIPT_DIR/event_loop.cpp" \
     "$SCRIPT_DIR/event_loop_select.cpp" \
     "$SCRIPT_DIR/event_loop_epoll.cpp" \
