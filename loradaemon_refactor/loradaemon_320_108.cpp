@@ -293,6 +293,14 @@ volatile bool cad868_active = false;
 volatile bool getrssi_433_active = false;
 volatile bool getrssi_868_active = false;
 
+/* --- RX drop statistics -------------------------------------------------- */
+// Rate-limited counters for invalid RadioLib RX reads.
+static unsigned long rx_drop_433 = 0;
+static unsigned long rx_drop_868 = 0;
+
+#define RX_DROP_LOG_INITIAL 5
+#define RX_DROP_LOG_INTERVAL 100
+
 // --- Modusverwaltung: LoRa oder FSK pro Band ---
 // Default: LORA -> volle Rückwärtskompatibilität mit alten Clients
 // Umschalten nur durch explizites "SET MODE=FSK" bzw. "SET MODE=LORA"
@@ -1123,6 +1131,43 @@ static int16_t daemon_read_rx_data(int band, uint8_t *buf, size_t buf_len)
     return radio_868->readData(buf, buf_len);
 }
 
+/* --- RX read validation -------------------------------------------------- */
+static unsigned long *daemon_rx_drop_counter(int band)
+{
+    if (band == 433)
+        return &rx_drop_433;
+
+    return &rx_drop_868;
+}
+
+static bool daemon_should_log_rx_drop(unsigned long drops)
+{
+    return drops <= RX_DROP_LOG_INITIAL ||
+           (RX_DROP_LOG_INTERVAL > 0 && drops % RX_DROP_LOG_INTERVAL == 0);
+}
+
+static void daemon_record_rx_drop(int band, int16_t state)
+{
+    unsigned long *drops = daemon_rx_drop_counter(band);
+
+    (*drops)++;
+
+    if (daemon_should_log_rx_drop(*drops)) {
+        printf("[%d] RX read error: %d, packet dropped, drops=%lu\n",
+               band, state, *drops);
+        fflush(stdout);
+    }
+}
+
+static bool daemon_rx_read_ok(int band, int16_t state)
+{
+    if (state == RADIOLIB_ERR_NONE)
+        return true;
+
+    daemon_record_rx_drop(band, state);
+    return false;
+}
+
 /* --- RX band flow -------------------------------------------------------- */
 static void daemon_process_radio_band(int band, uint8_t (&rx_buf)[buf_SIZE])
 {
@@ -1145,11 +1190,15 @@ static void daemon_process_radio_band(int band, uint8_t (&rx_buf)[buf_SIZE])
         return;
     }
 
-    int16_t n = daemon_read_rx_data(band, rx_buf, sizeof(rx_buf)); // 5ms Timeout
-    (void)n;
+    int16_t read_state = daemon_read_rx_data(band, rx_buf, sizeof(rx_buf)); // 5ms Timeout
 
     // Im FSK-Modus: clearIrq NACH readData() - FIFO ist jetzt geleert
     daemon_clear_irq_after_rx_read(band);
+
+    if (!daemon_rx_read_ok(band, read_state)) {
+        daemon_finish_rx_packet(band, rx_buf, sizeof(rx_buf));
+        return;
+    }
 
     daemon_print_rx_packet(band, rx_buf, len);
     daemon_broadcast_rx_data(band, rx_buf, len);

@@ -190,3 +190,6 @@ The original project is licensed under GNU GPL v3 with additional conditions sta
 - binaries may only be redistributed with the full source code
 - no warranty; use at your own risk
 
+## Changelog
+
+- Drop RX packets when RadioLib reports read/CRC/header errors; keep per-band drop counters with rate-limited logging.
