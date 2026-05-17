@@ -796,6 +796,22 @@ static void daemon_loop_context_init(DaemonLoopContext *ctx)
     ctx->config_433_ctx = daemon_config_433_context();
     ctx->config_868_ctx = daemon_config_868_context();
 }
+
+/* --- Main runtime context: event loop, buffers and loop state ------------ */
+typedef struct {
+    EventLoopSet event_set;
+    EventLoopReadySet readfds;
+    uint8_t buf[buf_SIZE];
+    uint8_t rx_buf_433[buf_SIZE];  // ← GETRENNTE Buffer pro Band!
+    uint8_t rx_buf_868[buf_SIZE];  // ← GETRENNTE Buffer pro Band!
+    DaemonLoopContext loop_ctx;
+} DaemonMainContext;
+
+static void daemon_main_context_init(DaemonMainContext *ctx)
+{
+    daemon_runtime_init(&ctx->event_set);
+    daemon_loop_context_init(&ctx->loop_ctx);
+}
 /* --- CONFIG dispatch execution ------------------------------------------- */
 static void process_config_dispatch(ConfigDispatchContext<SX1278> *config_433_ctx,
                                     ConfigDispatchContext<RFM95> *config_868_ctx,
@@ -1263,18 +1279,17 @@ static void daemon_process_loop_iteration(EventLoopSet *event_set,
 }
 
 /* --- Polling loop lifecycle --------------------------------------------- */
-static void daemon_run_polling_loop(EventLoopSet *event_set,
-                                    DaemonLoopContext *loop_ctx,
-                                    EventLoopReadySet *readfds,
-                                    uint8_t *buf,
-                                    uint8_t (&rx_buf_433)[buf_SIZE],
-                                    uint8_t (&rx_buf_868)[buf_SIZE])
+static void daemon_run_polling_loop(DaemonMainContext *ctx)
 {
     daemon_log_loop_start();
 
     while (!daemon_lifecycle_stop_requested()) {
-        daemon_process_loop_iteration(event_set, readfds, loop_ctx,
-                                      buf, rx_buf_433, rx_buf_868);
+        daemon_process_loop_iteration(&ctx->event_set,
+                                      &ctx->readfds,
+                                      &ctx->loop_ctx,
+                                      ctx->buf,
+                                      ctx->rx_buf_433,
+                                      ctx->rx_buf_868);
     } // while stop not requested
 }
 
@@ -1318,22 +1333,13 @@ int main(int argc, char *argv[]) {
 
     daemon_radio_io_init();
 
-    EventLoopSet event_set;
-    daemon_runtime_init(&event_set);
+    DaemonMainContext main_ctx;
+    daemon_main_context_init(&main_ctx);
 
-    EventLoopReadySet readfds;
-    uint8_t buf[buf_SIZE];
-    uint8_t rx_buf_433[buf_SIZE];  // ← GETRENNTE Buffer pro Band!
-    uint8_t rx_buf_868[buf_SIZE];  // ← GETRENNTE Buffer pro Band!
-
-    DaemonLoopContext loop_ctx;
-    daemon_loop_context_init(&loop_ctx);
-
-    daemon_run_polling_loop(&event_set, &loop_ctx, &readfds,
-                            buf, rx_buf_433, rx_buf_868);
+    daemon_run_polling_loop(&main_ctx);
 
     printf("[Daemon] Stop requested\n");
-    daemon_shutdown_cleanup(&event_set);
+    daemon_shutdown_cleanup(&main_ctx.event_set);
 
     return 0;
 }
