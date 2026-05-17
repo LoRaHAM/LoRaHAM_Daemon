@@ -1,6 +1,7 @@
 # LoRaHAM_Daemon
 
 ## Changelog
+- Refactor: RadioController erhält expliziten Shutdown für RadioLib-Objekte.
 - Refactor: DATA-TX-Kontext hält direkt den RadioController statt einer TX-View.
 - Refactor: DATA-TX CAD-Abfrage liest den Modemstatus über den RadioController.
 - Refactor: Legacy-Radio-Globals und Kompatibilitäts-Spiegelung entfernt.

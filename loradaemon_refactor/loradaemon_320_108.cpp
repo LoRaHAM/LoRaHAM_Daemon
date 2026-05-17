@@ -168,8 +168,12 @@ ClientSlot client_conf868_slots[MAX_CLIENTS];
 RadioChannelIo channel_433;
 RadioChannelIo channel_868;
 
+static void daemon_radio_shutdown_cleanup(void);
+
 static void daemon_shutdown_cleanup(EventLoopSet *event_set)
 {
+    daemon_radio_shutdown_cleanup();
+
     event_loop_close(event_set);
     client_slot_close_all(client_data433_slots, MAX_CLIENTS);
     client_slot_close_all(client_data868_slots, MAX_CLIENTS);
@@ -291,6 +295,43 @@ static void daemon_radio_controller_init(void)
                           true,
                           setFlag868,
                           PIN_868);
+}
+
+template<typename RadioT>
+static void radio_controller_shutdown(RadioController<RadioT> *ctrl)
+{
+    if (!ctrl)
+        return;
+
+    if (ctrl->radio) {
+        if (radio_controller_ready(ctrl)) {
+            ctrl->radio->clearPacketReceivedAction();
+            ctrl->radio->standby();
+            ctrl->radio->clearIrq(0xFFFFFFFF);
+        }
+
+        delete ctrl->radio;
+        ctrl->radio = nullptr;
+    }
+
+    delete ctrl->mod;
+    ctrl->mod = nullptr;
+
+    delete ctrl->hal;
+    ctrl->hal = nullptr;
+
+    ctrl->health = RADIO_HEALTH_UNINITIALIZED;
+    ctrl->received = false;
+    ctrl->tx_busy = false;
+    ctrl->cad_active = false;
+    ctrl->getrssi_active = false;
+    ctrl->rx_drops = 0;
+}
+
+static void daemon_radio_shutdown_cleanup(void)
+{
+    radio_controller_shutdown(&radio_controller_433);
+    radio_controller_shutdown(&radio_controller_868);
 }
 
 // --- Callback für 868 ---
