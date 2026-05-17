@@ -7,6 +7,10 @@
 #include <sys/socket.h>
 #include <unistd.h>
 
+#ifndef MSG_NOSIGNAL
+#define MSG_NOSIGNAL 0
+#endif
+
 /* --- Client slots -------------------------------------------------------- */
 
 int client_set_add(int *clients, int max_clients, int fd)
@@ -88,16 +92,56 @@ void client_set_add_to_event_loop(int *clients, int max_clients, EventLoopSet *s
     }
 }
 
+/* --- Client writes ------------------------------------------------------- */
+static ssize_t client_set_send_all(int fd, const uint8_t *buf, size_t len)
+{
+    size_t sent = 0;
+
+    if (len == 0)
+        return 0;
+
+    if (!buf) {
+        errno = EINVAL;
+        return -1;
+    }
+
+    while (sent < len) {
+        ssize_t n = send(fd, buf + sent, len - sent, MSG_NOSIGNAL);
+
+        if (n < 0) {
+            if (errno == EINTR)
+                continue;
+
+            return -1;
+        }
+
+        if (n == 0) {
+            errno = EPIPE;
+            return -1;
+        }
+
+        sent += (size_t)n;
+    }
+
+    return (ssize_t)sent;
+}
+
 /* --- Client broadcasts --------------------------------------------------- */
 // Statusmeldungen an alle verbundenen Clients senden.
 
 void client_set_broadcast(int *clients, int max_clients, const char *msg)
 {
-    size_t len = strlen(msg);
+    size_t len;
+
+    if (!msg)
+        return;
+
+    len = strlen(msg);
 
     for (int i = 0; i < max_clients; i++) {
-        if (clients[i] > 0)
-            write(clients[i], msg, len);
+        if (clients[i] > 0 &&
+            client_set_send_all(clients[i], (const uint8_t *)msg, len) < 0)
+            client_set_close_slot(clients, i);
     }
 }
 
@@ -105,8 +149,12 @@ void client_set_broadcast(int *clients, int max_clients, const char *msg)
 // Rohdaten an alle verbundenen Clients senden.
 void client_set_broadcast_bytes(int *clients, int max_clients, const uint8_t *buf, size_t len)
 {
+    if (len > 0 && !buf)
+        return;
+
     for (int i = 0; i < max_clients; i++) {
-        if (clients[i] > 0)
-            write(clients[i], buf, len);
+        if (clients[i] > 0 &&
+            client_set_send_all(clients[i], buf, len) < 0)
+            client_set_close_slot(clients, i);
     }
 }

@@ -194,6 +194,7 @@ Refactored by Johannes Loose / 410733@gmail.com
 
 - Structurally refactored loradaemon_320_108, introduced an EPOLL-only event loop, and test-covered the cleanup without intended functional changes.
 - Bugfixes
+  - Fix client broadcast errors: failed writes close broken clients instead of keeping stale slots.
   - Fix client slot overflow: accepted clients without a free slot are closed instead of leaked.
   - Fix FSK SHAPING parsing: BT values now map to RadioLib constants instead of truncating to 0.
   - Fix TX bounds checks: invalid or oversized packets are rejected before copy/transmit.
