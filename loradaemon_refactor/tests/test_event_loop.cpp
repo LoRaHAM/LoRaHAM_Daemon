@@ -234,13 +234,11 @@ static void test_backend_default_init(void)
 
     ret = event_loop_init_default(&set);
 
-    if (ret == 0) {
-        expect_int("default backend epoll",
-                   event_loop_backend(&set) == EVENT_LOOP_BACKEND_EPOLL, 1);
-    } else {
-        expect_int("default backend select fallback",
-                   event_loop_backend(&set) == EVENT_LOOP_BACKEND_SELECT, 1);
-    }
+    expect_int("default backend init uses epoll", ret, 0);
+    expect_int("default backend epoll",
+               event_loop_backend(&set) == EVENT_LOOP_BACKEND_EPOLL, 1);
+    expect_int("default backend name epoll",
+               strcmp(event_loop_backend_name(event_loop_backend(&set)), "epoll") == 0, 1);
 
     expect_int("default backend starts empty",
                event_loop_has_registered_fds(&set), 0);
