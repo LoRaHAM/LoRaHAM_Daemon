@@ -92,6 +92,7 @@ tests=(
   "$TEST_DIR/check_default_log_noise.sh"
   "$TEST_DIR/check_shutdown_eintr_logging.sh"
   "$TEST_DIR/check_final_cleanup_findings.sh"
+  "$TEST_DIR/check_daemon_log_split.sh"
   "$TEST_DIR/test_rf_packet"
   "$TEST_DIR/test_event_loop"
   "$TEST_DIR/test_daemon_timing"
