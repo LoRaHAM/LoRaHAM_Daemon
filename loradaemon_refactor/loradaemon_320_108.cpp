@@ -1080,73 +1080,77 @@ static void daemon_print_rx_packet(int band, uint8_t *buf, int len)
         daemon_print_fsk_packet("868", "32m", buf, len, radio_868->getRSSI());
 }
 
+static bool daemon_rx_flag_active(int band)
+{
+    if (band == 433)
+        return receivedFlag433;
+
+    return receivedFlag868;
+}
+
+static bool daemon_tx_busy(int band)
+{
+    if (band == 433)
+        return txBusy433;
+
+    return txBusy868;
+}
+
+static int16_t daemon_read_rx_data(int band, uint8_t *buf, size_t buf_len)
+{
+    if (band == 433)
+        return radio_433->readData(buf, buf_len);
+
+    return radio_868->readData(buf, buf_len);
+}
+
+static void daemon_process_radio_band(int band, uint8_t (&rx_buf)[buf_SIZE])
+{
+    if (!daemon_rx_flag_active(band))
+        return;
+
+    if (daemon_tx_busy(band)) {
+        daemon_discard_rx_during_tx(band);
+        return;
+    }
+
+    daemon_prepare_rx_packet(band, rx_buf, sizeof(rx_buf));
+
+    int len = daemon_rx_packet_length(band);
+    // Fehlauslösung (z.B. durch CAD-IRQ): kein Paket vorhanden
+    if (len <= 0) {
+        // Im FSK-Modus: clearIrq erst jetzt sicher (FIFO war leer)
+        daemon_restart_receive_after_empty_rx(band);
+        return;
+    }
+
+    int16_t n = daemon_read_rx_data(band, rx_buf, sizeof(rx_buf)); // 5ms Timeout
+    (void)n;
+
+    // Im FSK-Modus: clearIrq NACH readData() - FIFO ist jetzt geleert
+    daemon_clear_irq_after_rx_read(band);
+
+    daemon_print_rx_packet(band, rx_buf, len);
+    daemon_broadcast_rx_data(band, rx_buf, len);
+
+    len = 0;
+    (void)len;
+    //radio_868->standby();
+    //radio_868->clearIrqFlags(0xFFFFFFFF);
+    daemon_finish_rx_packet(band, rx_buf, sizeof(rx_buf));
+}
+
 
 static void daemon_process_radio_433(uint8_t (&rx_buf_433)[buf_SIZE])
 {
-                        // --- LoRa/FSK Polling 433 (kurzer Timeout 5ms, Non-Blocking) ---
-                        if(receivedFlag433){
-                            if(txBusy433 == false){
-                                daemon_prepare_rx_packet(433, rx_buf_433, sizeof(rx_buf_433));
-
-                                int len433 = daemon_rx_packet_length(433);
-                                // Fehlauslösung (z.B. durch CAD-IRQ): kein Paket vorhanden
-                                if (len433 <= 0) {
-                                    // Im FSK-Modus: clearIrq erst jetzt sicher (FIFO war leer)
-                                    daemon_restart_receive_after_empty_rx(433);
-                                } else {
-                                    int16_t n433 = radio_433->readData(rx_buf_433,sizeof(rx_buf_433)); // 5ms Timeout
-
-                                    // Im FSK-Modus: clearIrq NACH readData() - FIFO ist jetzt geleert
-                                    daemon_clear_irq_after_rx_read(433);
-
-                                    daemon_print_rx_packet(433, rx_buf_433, len433);
-
-                                    daemon_broadcast_rx_data(433, rx_buf_433, len433);
-
-                                    len433=0;
-                                    daemon_finish_rx_packet(433, rx_buf_433, sizeof(rx_buf_433));
-                                }
-                            } else {
-                                daemon_discard_rx_during_tx(433);
-                            }
-                        }
-
+    // --- LoRa/FSK Polling 433 (kurzer Timeout 5ms, Non-Blocking) ---
+    daemon_process_radio_band(433, rx_buf_433);
 }
 
 static void daemon_process_radio_868(uint8_t (&rx_buf_868)[buf_SIZE])
 {
-                        // --- LoRa/FSK Polling 868 (mit Callback-Flag + Non-Blocking 5ms) ---
-                        if(receivedFlag868){
-                            if(txBusy868 == false){
-                                daemon_prepare_rx_packet(868, rx_buf_868, sizeof(rx_buf_868));
-
-                                int len868 = daemon_rx_packet_length(868);
-                                // Fehlauslösung (z.B. durch CAD-IRQ): kein Paket vorhanden
-                                if (len868 <= 0) {
-                                    // Im FSK-Modus: clearIrq erst jetzt sicher (FIFO war leer)
-                                    daemon_restart_receive_after_empty_rx(868);
-                                } else {
-                                    int16_t n868 = radio_868->readData(rx_buf_868,sizeof(rx_buf_868)); // 5ms Timeout
-
-                                    // Im FSK-Modus: clearIrq NACH readData() - FIFO ist jetzt geleert
-                                    daemon_clear_irq_after_rx_read(868);
-
-                                    daemon_print_rx_packet(868, rx_buf_868, len868);
-
-                                    daemon_broadcast_rx_data(868, rx_buf_868, len868);
-
-                                    len868=0;
-                                    n868=0;
-                                    //radio_868->standby();
-                                    //radio_868->clearIrqFlags(0xFFFFFFFF);
-                                    daemon_finish_rx_packet(868, rx_buf_868, sizeof(rx_buf_868));
-                                }
-                            } else {
-                                daemon_discard_rx_during_tx(868);
-                            }
-                        }
-
-
+    // --- LoRa/FSK Polling 868 (mit Callback-Flag + Non-Blocking 5ms) ---
+    daemon_process_radio_band(868, rx_buf_868);
 }
 
 static void daemon_process_radio_polling(DaemonDeadlineTimer *rssi_timer,
