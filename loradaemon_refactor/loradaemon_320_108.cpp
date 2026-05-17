@@ -771,6 +771,31 @@ static ConfigDispatchContext<RFM95> daemon_config_868_context(void)
 
     return ctx;
 }
+
+/* --- Main loop context: RSSI timer plus DATA/CONFIG state ---------------- */
+typedef struct {
+    DaemonDeadlineTimer rssi_timer;
+    DataTxDaemonContext data_tx_433_ctx;
+    DataTxDaemonContext data_tx_868_ctx;
+    ConfigDispatchContext<SX1278> config_433_ctx;
+    ConfigDispatchContext<RFM95> config_868_ctx;
+} DaemonLoopContext;
+
+static void daemon_loop_context_init(DaemonLoopContext *ctx)
+{
+    // --- GETRSSI Timer ---
+    daemon_deadline_timer_init(&ctx->rssi_timer,
+                               daemon_now_ms(),
+                               DAEMON_RSSI_INTERVAL_MS);
+
+    // --- DATA TX callbacks ---
+    ctx->data_tx_433_ctx = daemon_data_tx_context("433", 433, &mode_433);
+    ctx->data_tx_868_ctx = daemon_data_tx_context("868", 868, &mode_868);
+
+    // --- CONFIG dispatch ---
+    ctx->config_433_ctx = daemon_config_433_context();
+    ctx->config_868_ctx = daemon_config_868_context();
+}
 /* --- CONFIG dispatch execution ------------------------------------------- */
 static void process_config_dispatch(ConfigDispatchContext<SX1278> *config_433_ctx,
                                     ConfigDispatchContext<RFM95> *config_868_ctx,
@@ -1260,17 +1285,8 @@ int main(int argc, char *argv[]) {
     uint8_t rx_buf_433[buf_SIZE];  // ← GETRENNTE Buffer pro Band!
     uint8_t rx_buf_868[buf_SIZE];  // ← GETRENNTE Buffer pro Band!
 
-    // --- GETRSSI Timer ---
-    DaemonDeadlineTimer rssi_timer;
-    daemon_deadline_timer_init(&rssi_timer, daemon_now_ms(), DAEMON_RSSI_INTERVAL_MS);
-
-    // --- DATA TX callbacks ---
-    DataTxDaemonContext data_tx_433_ctx = daemon_data_tx_context("433", 433, &mode_433);
-    DataTxDaemonContext data_tx_868_ctx = daemon_data_tx_context("868", 868, &mode_868);
-
-    // --- CONFIG dispatch ---
-    ConfigDispatchContext<SX1278> config_433_ctx = daemon_config_433_context();
-    ConfigDispatchContext<RFM95> config_868_ctx = daemon_config_868_context();
+    DaemonLoopContext loop_ctx;
+    daemon_loop_context_init(&loop_ctx);
 
     daemon_log_loop_start();
 
@@ -1284,11 +1300,13 @@ int main(int argc, char *argv[]) {
         }
 
         // --- Socket Clients bearbeiten ---
-        daemon_process_ready_sockets(&config_433_ctx, &config_868_ctx,
-                                    &data_tx_433_ctx, &data_tx_868_ctx,
+        daemon_process_ready_sockets(&loop_ctx.config_433_ctx,
+                                    &loop_ctx.config_868_ctx,
+                                    &loop_ctx.data_tx_433_ctx,
+                                    &loop_ctx.data_tx_868_ctx,
                                     &readfds, buf);
 
-        daemon_process_radio_polling(&rssi_timer, rx_buf_433, rx_buf_868);
+        daemon_process_radio_polling(&loop_ctx.rssi_timer, rx_buf_433, rx_buf_868);
 
     } // while stop not requested
 
