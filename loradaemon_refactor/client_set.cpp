@@ -278,7 +278,17 @@ ssize_t client_set_read_slot(int *clients, int index, void *buf, size_t len)
 
 int client_set_slot_ready(int *clients, int index, const EventLoopReadySet *ready)
 {
-    return clients[index] > 0 && event_loop_ready_fd(ready, clients[index]);
+    return clients[index] > 0 && event_loop_ready_fd_read(ready, clients[index]);
+}
+
+int client_set_output_ready(int *clients,
+                            ClientOutputQueue *queues,
+                            int index,
+                            const EventLoopReadySet *ready)
+{
+    return clients[index] > 0 && queues &&
+           client_output_queue_pending(&queues[index]) > 0 &&
+           event_loop_ready_fd_write(ready, clients[index]);
 }
 
 void client_set_add_to_event_loop(int *clients, int max_clients, EventLoopSet *set)
@@ -286,6 +296,23 @@ void client_set_add_to_event_loop(int *clients, int max_clients, EventLoopSet *s
     for (int i = 0; i < max_clients; i++) {
         if (clients[i] > 0)
             event_loop_add_fd(set, clients[i]);
+    }
+}
+
+void client_set_add_to_event_loop_with_output(int *clients,
+                                              ClientOutputQueue *queues,
+                                              int max_clients,
+                                              EventLoopSet *set)
+{
+    for (int i = 0; i < max_clients; i++) {
+        if (clients[i] > 0) {
+            uint32_t events = EVENT_LOOP_EVENT_READ;
+
+            if (queues && client_output_queue_pending(&queues[i]) > 0)
+                events |= EVENT_LOOP_EVENT_WRITE;
+
+            event_loop_add_fd_events(set, clients[i], events);
+        }
     }
 }
 
@@ -344,6 +371,20 @@ void client_set_flush_outputs(int *clients, ClientOutputQueue *queues, int max_c
 
     for (int i = 0; i < max_clients; i++)
         client_set_flush_output_slot(clients, queues, i);
+}
+
+void client_set_flush_ready_outputs(int *clients,
+                                    ClientOutputQueue *queues,
+                                    int max_clients,
+                                    const EventLoopReadySet *ready)
+{
+    if (!queues)
+        return;
+
+    for (int i = 0; i < max_clients; i++) {
+        if (client_set_output_ready(clients, queues, i, ready))
+            client_set_flush_output_slot(clients, queues, i);
+    }
 }
 
 /* --- Client broadcasts --------------------------------------------------- */

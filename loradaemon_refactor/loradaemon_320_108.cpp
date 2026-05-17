@@ -851,6 +851,9 @@ static void daemon_process_ready_sockets(ConfigDispatchContext<SX1278> *config_4
                             readfds, send_data_chunk, data_tx_868_ctx);
 
     process_config_dispatch(config_433_ctx, config_868_ctx, readfds, buf);
+
+    radio_channel_flush_ready(&channel_433, readfds);
+    radio_channel_flush_ready(&channel_868, readfds);
 }
 
 

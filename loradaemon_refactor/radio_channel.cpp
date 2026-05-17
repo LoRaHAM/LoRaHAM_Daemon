@@ -40,19 +40,25 @@ void radio_channel_add_fds(RadioChannelIo *ch, EventLoopSet *set)
     event_loop_add_fd(set, *ch->data_listen_fd);
     event_loop_add_fd(set, *ch->conf_listen_fd);
 
-    client_set_add_to_event_loop(ch->data_clients, MAX_CLIENTS, set);
-    client_set_add_to_event_loop(ch->conf_clients, MAX_CLIENTS, set);
+    client_set_add_to_event_loop_with_output(ch->data_clients,
+                                             ch->data_output_queues,
+                                             MAX_CLIENTS,
+                                             set);
+    client_set_add_to_event_loop_with_output(ch->conf_clients,
+                                             ch->conf_output_queues,
+                                             MAX_CLIENTS,
+                                             set);
 }
 
 void radio_channel_accept_ready(RadioChannelIo *ch, const EventLoopReadySet *ready)
 {
-    if(event_loop_ready_fd(ready, *ch->data_listen_fd))
+    if(event_loop_ready_fd_read(ready, *ch->data_listen_fd))
         client_set_accept_with_output(*ch->data_listen_fd,
                                       ch->data_clients,
                                       ch->data_output_queues,
                                       MAX_CLIENTS);
 
-    if(event_loop_ready_fd(ready, *ch->conf_listen_fd))
+    if(event_loop_ready_fd_read(ready, *ch->conf_listen_fd))
         client_set_accept_with_output(*ch->conf_listen_fd,
                                       ch->conf_clients,
                                       ch->conf_output_queues,
@@ -63,6 +69,18 @@ void radio_channel_open_sockets(RadioChannelIo *ch)
 {
     *ch->data_listen_fd = setup_unix_socket(ch->data_socket_path, MAX_CLIENTS);
     *ch->conf_listen_fd = setup_unix_socket(ch->conf_socket_path, MAX_CLIENTS);
+}
+
+void radio_channel_flush_ready(RadioChannelIo *ch, const EventLoopReadySet *ready)
+{
+    client_set_flush_ready_outputs(ch->data_clients,
+                                   ch->data_output_queues,
+                                   MAX_CLIENTS,
+                                   ready);
+    client_set_flush_ready_outputs(ch->conf_clients,
+                                   ch->conf_output_queues,
+                                   MAX_CLIENTS,
+                                   ready);
 }
 
 

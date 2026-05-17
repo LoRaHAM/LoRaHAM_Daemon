@@ -41,6 +41,11 @@ void event_loop_add_fd(EventLoopSet *set, int fd)
     (void)event_loop_epoll_add_fd(&set->epoll_backend, fd);
 }
 
+void event_loop_add_fd_events(EventLoopSet *set, int fd, uint32_t events)
+{
+    (void)event_loop_epoll_add_fd_events(&set->epoll_backend, fd, events);
+}
+
 int event_loop_has_registered_fds(const EventLoopSet *set)
 {
     return event_loop_epoll_has_registered_fds(&set->epoll_backend);
@@ -49,6 +54,16 @@ int event_loop_has_registered_fds(const EventLoopSet *set)
 int event_loop_ready_fd(const EventLoopReadySet *ready, int fd)
 {
     return event_loop_epoll_ready_fd(&ready->epoll_ready, fd);
+}
+
+int event_loop_ready_fd_read(const EventLoopReadySet *ready, int fd)
+{
+    return event_loop_epoll_ready_fd_read(&ready->epoll_ready, fd);
+}
+
+int event_loop_ready_fd_write(const EventLoopReadySet *ready, int fd)
+{
+    return event_loop_epoll_ready_fd_write(&ready->epoll_ready, fd);
 }
 
 int event_loop_wait(const EventLoopSet *set,
