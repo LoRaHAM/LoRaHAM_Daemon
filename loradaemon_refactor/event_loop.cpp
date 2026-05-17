@@ -2,7 +2,7 @@
 
 /* --- epoll-only event-loop wrapper --- */
 
-int event_loop_init_epoll(EventLoopSet *set)
+int event_loop_init(EventLoopSet *set)
 {
     if (event_loop_epoll_init(&set->epoll_backend) != 0) {
         set->backend = EVENT_LOOP_BACKEND_EPOLL;
@@ -11,11 +11,6 @@ int event_loop_init_epoll(EventLoopSet *set)
 
     set->backend = EVENT_LOOP_BACKEND_EPOLL;
     return 0;
-}
-
-int event_loop_init_default(EventLoopSet *set)
-{
-    return event_loop_init_epoll(set);
 }
 
 void event_loop_close(EventLoopSet *set)

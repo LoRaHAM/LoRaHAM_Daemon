@@ -180,7 +180,7 @@ static void test_dispatch_ready_client_epoll(void)
 
     clients[0] = sv[1];
 
-    if (event_loop_init_epoll(&set) != 0) {
+    if (event_loop_init(&set) != 0) {
         close(sv[0]);
         client_set_close_slot(clients, 0);
         g_fail++;

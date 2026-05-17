@@ -191,7 +191,7 @@ static int daemon_wait_for_events(EventLoopSet *event_set,
 static void daemon_runtime_init(EventLoopSet *event_set)
 {
     // --- Event-Backend ---
-    if (event_loop_init_default(event_set) != 0)
+    if (event_loop_init(event_set) != 0)
         perror("epoll");
     printf("[Daemon] Event-Backend: %s\n",
            event_loop_backend_name(event_loop_backend(event_set)));

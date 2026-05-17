@@ -115,7 +115,7 @@ static void test_backend_default_init(void)
     EventLoopSet set;
     int ret;
 
-    ret = event_loop_init_default(&set);
+    ret = event_loop_init(&set);
 
     expect_int("default backend init uses epoll", ret, 0);
     expect_int("default backend epoll",
@@ -139,7 +139,7 @@ static void test_backend_reset_preserves_epoll(void)
         return;
     }
 
-    if (event_loop_init_default(&set) != 0) {
+    if (event_loop_init(&set) != 0) {
         close(fds[0]);
         close(fds[1]);
         g_fail++;
@@ -174,7 +174,7 @@ static void test_backend_close_epoll_clears_state(void)
         return;
     }
 
-    if (event_loop_init_default(&set) != 0) {
+    if (event_loop_init(&set) != 0) {
         close(fds[0]);
         close(fds[1]);
         g_fail++;
@@ -212,7 +212,7 @@ static void test_backend_neutral_aliases(void)
         return;
     }
 
-    if (event_loop_init_default(&set) != 0) {
+    if (event_loop_init(&set) != 0) {
         close(fds[0]);
         close(fds[1]);
         g_fail++;
@@ -249,7 +249,7 @@ static void test_backend_neutral_wait_readable_pipe(void)
         return;
     }
 
-    if (event_loop_init_default(&set) != 0) {
+    if (event_loop_init(&set) != 0) {
         close(fds[0]);
         close(fds[1]);
         g_fail++;
