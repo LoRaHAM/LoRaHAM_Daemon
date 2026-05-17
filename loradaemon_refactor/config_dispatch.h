@@ -2,6 +2,7 @@
 #define LORAHAM_CONFIG_DISPATCH_H
 
 #include "client_set.h"
+#include "daemon_protocol.h"
 #include "radio_channel.h"
 
 #include <stddef.h>
@@ -24,7 +25,6 @@ static void config_dispatch_client(int *clients,
                                    int index,
                                    const fd_set *readfds,
                                    uint8_t *buf,
-                                   size_t buf_size,
                                    RadioT& radio,
                                    const char *tag,
                                    const char *prefix,
@@ -35,10 +35,7 @@ static void config_dispatch_client(int *clients,
     if(!client_set_slot_ready(clients, index, readfds))
         return;
 
-    if(buf_size == 0)
-        return;
-
-    ssize_t n = client_set_read_slot(clients, index, buf, buf_size - 1);
+    ssize_t n = client_set_read_slot(clients, index, buf, buf_SIZE - 1);
     if(n <= 0)
         return;
 
@@ -59,7 +56,6 @@ static void config_dispatch_clients(int *clients,
                                     int max_clients,
                                     const fd_set *readfds,
                                     uint8_t *buf,
-                                    size_t buf_size,
                                     RadioT& radio,
                                     const char *tag,
                                     const char *prefix,
@@ -68,7 +64,7 @@ static void config_dispatch_clients(int *clients,
                                     void (*rx_callback)(void))
 {
     for(int i=0;i<max_clients;i++){
-        config_dispatch_client<RadioT>(clients, i, readfds, buf, buf_size,
+        config_dispatch_client<RadioT>(clients, i, readfds, buf,
                                        radio, tag, prefix,
                                        mode, getrssi_active, rx_callback);
     }
