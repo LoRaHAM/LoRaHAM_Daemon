@@ -625,7 +625,41 @@ void lora_init() {
 
 static void daemon_radio_io_init(void)
 {
-    daemon_radio_io_init();
+    radio_channel_io_init(&channel_433,
+                          RADIO_BAND_433,
+                          DATA433_SOCKET,
+                          CONF433_SOCKET,
+                          &data433_fd,
+                          &conf433_fd,
+                          client_data433,
+                          client_conf433);
+    radio_channel_io_init(&channel_868,
+                          RADIO_BAND_868,
+                          DATA868_SOCKET,
+                          CONF868_SOCKET,
+                          &data868_fd,
+                          &conf868_fd,
+                          client_data868,
+                          client_conf868);
+
+    radio_channel_open_sockets(&channel_433);
+    radio_channel_open_sockets(&channel_868);
+
+    radio_channel_runtime_init(&runtime_433,
+                               &mode_433,
+                               &receivedFlag433,
+                               &txBusy433,
+                               &cad433_active,
+                               &getrssi_433_active);
+    radio_channel_runtime_init(&runtime_868,
+                               &mode_868,
+                               &receivedFlag868,
+                               &txBusy868,
+                               &cad868_active,
+                               &getrssi_868_active);
+
+    LED_init();
+    lora_init();
 }
 
 /* --- Data client TX handling --- */
@@ -819,41 +853,7 @@ int main(int argc, char *argv[]) {
     if (is_daemon)
         daemon_enter_background();
 
-    radio_channel_io_init(&channel_433,
-                          RADIO_BAND_433,
-                          DATA433_SOCKET,
-                          CONF433_SOCKET,
-                          &data433_fd,
-                          &conf433_fd,
-                          client_data433,
-                          client_conf433);
-    radio_channel_io_init(&channel_868,
-                          RADIO_BAND_868,
-                          DATA868_SOCKET,
-                          CONF868_SOCKET,
-                          &data868_fd,
-                          &conf868_fd,
-                          client_data868,
-                          client_conf868);
-
-    radio_channel_open_sockets(&channel_433);
-    radio_channel_open_sockets(&channel_868);
-
-    radio_channel_runtime_init(&runtime_433,
-                               &mode_433,
-                               &receivedFlag433,
-                               &txBusy433,
-                               &cad433_active,
-                               &getrssi_433_active);
-    radio_channel_runtime_init(&runtime_868,
-                               &mode_868,
-                               &receivedFlag868,
-                               &txBusy868,
-                               &cad868_active,
-                               &getrssi_868_active);
-
-    LED_init();
-    lora_init();
+    daemon_radio_io_init();
 
     EventLoopSet event_set;
     daemon_runtime_init(&event_set);
