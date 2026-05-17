@@ -1343,6 +1343,24 @@ static void process_config_client(int *clients,
     radio.startReceive();
 }
 
+template<typename RadioT>
+static void process_config_clients(int *clients,
+                                   const fd_set *readfds,
+                                   uint8_t *buf,
+                                   RadioT& radio,
+                                   const char *tag,
+                                   const char *prefix,
+                                   volatile RadioMode_t& mode,
+                                   volatile bool& getrssi_active,
+                                   void (*rx_callback)(void))
+{
+    for(int i=0;i<MAX_CLIENTS;i++){
+        process_config_client<RadioT>(clients, i, readfds, buf,
+                                      radio, tag, prefix,
+                                      mode, getrssi_active, rx_callback);
+    }
+}
+
 // --- Unix socket setup moved to unix_socket.cpp ---
 
 int main(int argc, char *argv[]) {
@@ -1468,14 +1486,12 @@ int main(int argc, char *argv[]) {
                                                 &readfds, send_data_chunk, &data_tx_868_ctx);
 
                         // --- CONFIG Clients bearbeiten ---
-                        for(int i=0;i<MAX_CLIENTS;i++){
-                            process_config_client<SX1278>(client_conf433, i, &readfds, buf,
-                                                          *radio_433, "CONF 433", "[CONF433]",
-                                                          mode_433, getrssi_433_active, setFlag433);
-                            process_config_client<RFM95>(client_conf868, i, &readfds, buf,
-                                                         *radio_868, "CONF 868", NULL,
-                                                         mode_868, getrssi_868_active, setFlag868);
-                        }
+                        process_config_clients<SX1278>(client_conf433, &readfds, buf,
+                                                       *radio_433, "CONF 433", "[CONF433]",
+                                                       mode_433, getrssi_433_active, setFlag433);
+                        process_config_clients<RFM95>(client_conf868, &readfds, buf,
+                                                      *radio_868, "CONF 868", NULL,
+                                                      mode_868, getrssi_868_active, setFlag868);
 
 
 
