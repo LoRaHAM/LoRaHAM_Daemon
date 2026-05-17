@@ -218,6 +218,26 @@ static void test_epoll_wait_timeout(void)
 
 /* --- backend-neutral wrapper --- */
 
+
+static void test_backend_default_init(void)
+{
+    EventLoopSet set;
+    int ret;
+
+    ret = event_loop_init_default(&set);
+
+    if (ret == 0) {
+        expect_int("default backend epoll",
+                   event_loop_backend(&set) == EVENT_LOOP_BACKEND_EPOLL, 1);
+    } else {
+        expect_int("default backend select fallback",
+                   event_loop_backend(&set) == EVENT_LOOP_BACKEND_SELECT, 1);
+    }
+
+    expect_int("default backend starts empty",
+               event_loop_has_registered_fds(&set), 0);
+    event_loop_close(&set);
+}
 static void test_backend_selection(void)
 {
     EventLoopSet set;
@@ -398,6 +418,7 @@ int main(int argc, char **argv)
     test_epoll_init_reset_close();
     test_epoll_wait_readable_pipe();
     test_epoll_wait_timeout();
+    test_backend_default_init();
     test_backend_selection();
     test_backend_reset_preserves_select();
     test_backend_reset_preserves_epoll();

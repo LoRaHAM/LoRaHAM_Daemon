@@ -25,6 +25,7 @@ typedef struct {
 
 void event_loop_init_select(EventLoopSet *set);
 int event_loop_init_epoll(EventLoopSet *set);
+int event_loop_init_default(EventLoopSet *set);
 void event_loop_close(EventLoopSet *set);
 EventLoopBackend event_loop_backend(const EventLoopSet *set);
 void event_loop_reset(EventLoopSet *set);

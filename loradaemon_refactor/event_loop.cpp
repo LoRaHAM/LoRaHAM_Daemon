@@ -23,6 +23,15 @@ int event_loop_init_epoll(EventLoopSet *set)
     return 0;
 }
 
+int event_loop_init_default(EventLoopSet *set)
+{
+    if (event_loop_init_epoll(set) == 0)
+        return 0;
+
+    event_loop_init_select(set);
+    return -1;
+}
+
 void event_loop_close(EventLoopSet *set)
 {
     if (set->backend == EVENT_LOOP_BACKEND_EPOLL)
