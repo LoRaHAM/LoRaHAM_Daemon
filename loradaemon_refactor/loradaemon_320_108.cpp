@@ -126,13 +126,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string>
-#include <vector>
 #include <unistd.h>
 #include <stdint.h>
-#include <sys/socket.h>
-#include <sys/un.h>
-#include <arpa/inet.h>
-#include <ctype.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <signal.h>
