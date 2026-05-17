@@ -999,6 +999,31 @@ static void daemon_broadcast_rx_data(int band, uint8_t *buf, int len)
     client_set_broadcast_bytes(client_data868, MAX_CLIENTS, buf, len);
 }
 
+static void daemon_restart_receive_after_empty_rx(int band)
+{
+    if (band == 433) {
+        radio_433->clearIrq(0xFFFFFFFF);
+        radio_433->startReceive();
+        return;
+    }
+
+    radio_868->clearIrq(0xFFFFFFFF);
+    radio_868->startReceive();
+}
+
+static void daemon_finish_rx_packet(int band, uint8_t *buf, size_t buf_len)
+{
+    if (band == 433) {
+        LED_433(0);
+        radio_433->startReceive();
+        return;
+    }
+
+    memset(buf, 0, buf_len);
+    LED_868(0);
+    radio_868->startReceive();
+}
+
 
 static void daemon_process_radio_433(uint8_t (&rx_buf_433)[buf_SIZE])
 {
@@ -1020,8 +1045,7 @@ static void daemon_process_radio_433(uint8_t (&rx_buf_433)[buf_SIZE])
                                 // Fehlauslösung (z.B. durch CAD-IRQ): kein Paket vorhanden
                                 if (len433 <= 0) {
                                     // Im FSK-Modus: clearIrq erst jetzt sicher (FIFO war leer)
-                                    radio_433->clearIrq(0xFFFFFFFF);
-                                    radio_433->startReceive();
+                                    daemon_restart_receive_after_empty_rx(433);
                                 } else {
                                     int16_t n433 = radio_433->readData(rx_buf_433,sizeof(rx_buf_433)); // 5ms Timeout
 
@@ -1039,8 +1063,7 @@ static void daemon_process_radio_433(uint8_t (&rx_buf_433)[buf_SIZE])
                                     daemon_broadcast_rx_data(433, rx_buf_433, len433);
 
                                     len433=0;
-                                    LED_433(0);
-                                    radio_433->startReceive();
+                                    daemon_finish_rx_packet(433, rx_buf_433, sizeof(rx_buf_433));
                                 }
                             } else {
                                 daemon_discard_rx_during_tx(433);
@@ -1069,8 +1092,7 @@ static void daemon_process_radio_868(uint8_t (&rx_buf_868)[buf_SIZE])
                                 // Fehlauslösung (z.B. durch CAD-IRQ): kein Paket vorhanden
                                 if (len868 <= 0) {
                                     // Im FSK-Modus: clearIrq erst jetzt sicher (FIFO war leer)
-                                    radio_868->clearIrq(0xFFFFFFFF);
-                                    radio_868->startReceive();
+                                    daemon_restart_receive_after_empty_rx(868);
                                 } else {
                                     int16_t n868 = radio_868->readData(rx_buf_868,sizeof(rx_buf_868)); // 5ms Timeout
 
@@ -1088,12 +1110,10 @@ static void daemon_process_radio_868(uint8_t (&rx_buf_868)[buf_SIZE])
                                     daemon_broadcast_rx_data(868, rx_buf_868, len868);
 
                                     len868=0;
-                                    memset(rx_buf_868, 0, sizeof(rx_buf_868) );
                                     n868=0;
-                                    LED_868(0);
                                     //radio_868->standby();
                                     //radio_868->clearIrqFlags(0xFFFFFFFF);
-                                    radio_868->startReceive();
+                                    daemon_finish_rx_packet(868, rx_buf_868, sizeof(rx_buf_868));
                                 }
                             } else {
                                 daemon_discard_rx_during_tx(868);
