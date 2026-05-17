@@ -61,22 +61,22 @@ int event_loop_select_wait(const EventLoopSelectSet *set,
 
 void event_loop_reset(EventLoopSet *set)
 {
-    event_loop_select_reset(set);
+    event_loop_select_reset(&set->select_backend);
 }
 
 void event_loop_add_fd(EventLoopSet *set, int fd)
 {
-    event_loop_select_add_fd(set, fd);
+    event_loop_select_add_fd(&set->select_backend, fd);
 }
 
 int event_loop_has_fd(const EventLoopSet *set, int fd)
 {
-    return event_loop_select_has_fd(set, fd);
+    return event_loop_select_has_fd(&set->select_backend, fd);
 }
 
 int event_loop_has_registered_fds(const EventLoopSet *set)
 {
-    return event_loop_select_fd_limit(set) > 0 ? 1 : 0;
+    return event_loop_select_fd_limit(&set->select_backend) > 0 ? 1 : 0;
 }
 
 int event_loop_ready_fd(const EventLoopReadySet *ready, int fd)
@@ -88,5 +88,5 @@ int event_loop_wait(const EventLoopSet *set,
                     EventLoopReadySet *ready,
                     int timeout_usec)
 {
-    return event_loop_select_wait(set, ready, timeout_usec);
+    return event_loop_select_wait(&set->select_backend, ready, timeout_usec);
 }

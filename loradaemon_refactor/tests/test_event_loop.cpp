@@ -151,6 +151,10 @@ static void test_backend_neutral_aliases(void)
     expect_int("generic fd present", event_loop_has_fd(&set, 5), 1);
     expect_int("generic fd missing", event_loop_has_fd(&set, 6), 0);
     expect_int("generic has registered fds", event_loop_has_registered_fds(&set), 1);
+
+    event_loop_reset(&set);
+    expect_int("generic reset clears registered fds",
+               event_loop_has_registered_fds(&set), 0);
 }
 
 static void test_backend_neutral_wait_readable_pipe(void)

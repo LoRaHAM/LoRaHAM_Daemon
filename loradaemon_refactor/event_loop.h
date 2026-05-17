@@ -10,7 +10,9 @@ typedef struct {
     int maxfd;
 } EventLoopSelectSet;
 
-typedef EventLoopSelectSet EventLoopSet;
+typedef struct {
+    EventLoopSelectSet select_backend;
+} EventLoopSet;
 
 typedef struct {
     fd_set readfds;
