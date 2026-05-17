@@ -1,6 +1,7 @@
 # LoRaHAM_Daemon
 
 ## Changelog
+- Funktion: Socket- und Client-Pfade um kurze Kontext-Debug-Logs ergänzt.
 - Funktion: RadioController-Init und Shutdown um kurze Kontext-Logs ergänzt.
 - Funktion: Verbose/Debug-Logs nutzen Kontext-Präfixe statt Level-Präfixe.
 - Funktion: Startup- und Lifecycle-Pfad um kurze Verbose/Debug-Logs ergänzt.

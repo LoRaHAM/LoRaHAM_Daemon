@@ -275,11 +275,17 @@ static void daemon_shutdown_cleanup(EventLoopSet *event_set)
 static int daemon_wait_for_events(EventLoopSet *event_set,
                                   EventLoopReadySet *readfds)
 {
+    int ret;
+
     event_loop_reset(event_set);
     radio_channel_add_fds(&channel_433, event_set);
     radio_channel_add_fds(&channel_868, event_set);
 
-    return event_loop_wait(event_set, readfds, DAEMON_EVENT_LOOP_TIMEOUT_USEC);
+    ret = event_loop_wait(event_set, readfds, DAEMON_EVENT_LOOP_TIMEOUT_USEC);
+    if (ret > 0)
+        daemon_debug_ctx("SOCKET", "%d Event(s)", ret);
+
+    return ret;
 }
 
 static void daemon_runtime_init(EventLoopSet *event_set)
@@ -1049,6 +1055,87 @@ static void process_config_dispatch(ConfigDispatchContext<SX1278> *config_433_ct
 }
 
 /* --- Socket dispatch ----------------------------------------------------- */
+static int daemon_client_slot_count(ClientSlot *slots, int max_clients)
+{
+    int count = 0;
+
+    if (!slots)
+        return 0;
+
+    for (int i = 0; i < max_clients; i++) {
+        if (client_slot_has_client(&slots[i]))
+            count++;
+    }
+
+    return count;
+}
+
+static bool daemon_client_slots_output_ready(ClientSlot *slots,
+                                             int max_clients,
+                                             const EventLoopReadySet *readfds)
+{
+    if (!slots)
+        return false;
+
+    for (int i = 0; i < max_clients; i++) {
+        if (client_slot_output_ready(&slots[i], readfds))
+            return true;
+    }
+
+    return false;
+}
+
+static void daemon_log_accept_delta(const char *ctx,
+                                    const char *kind,
+                                    int before,
+                                    int after)
+{
+    if (after > before)
+        daemon_debug_ctx(ctx, "%s-Client verbunden (%d)", kind, after);
+    else
+        daemon_debug_ctx(ctx, "%s-Annahme ohne neuen Client", kind);
+}
+
+static void daemon_accept_channel_logged(RadioChannelIo *channel,
+                                         const EventLoopReadySet *readfds,
+                                         const char *ctx)
+{
+    bool data_ready = event_loop_ready_fd_read(readfds, *channel->data_listen_fd);
+    bool conf_ready = event_loop_ready_fd_read(readfds, *channel->conf_listen_fd);
+    int data_before = daemon_client_slot_count(channel->data_slots, MAX_CLIENTS);
+    int conf_before = daemon_client_slot_count(channel->conf_slots, MAX_CLIENTS);
+
+    if (data_ready)
+        daemon_debug_ctx(ctx, "DATA-Annahme bereit");
+    if (conf_ready)
+        daemon_debug_ctx(ctx, "CONF-Annahme bereit");
+
+    radio_channel_accept_ready(channel, readfds);
+
+    if (data_ready) {
+        int data_after = daemon_client_slot_count(channel->data_slots, MAX_CLIENTS);
+        daemon_log_accept_delta(ctx, "DATA", data_before, data_after);
+    }
+
+    if (conf_ready) {
+        int conf_after = daemon_client_slot_count(channel->conf_slots, MAX_CLIENTS);
+        daemon_log_accept_delta(ctx, "CONF", conf_before, conf_after);
+    }
+}
+
+static void daemon_flush_channel_logged(RadioChannelIo *channel,
+                                        const EventLoopReadySet *readfds,
+                                        const char *ctx)
+{
+    if (daemon_client_slots_output_ready(channel->data_slots, MAX_CLIENTS, readfds))
+        daemon_debug_ctx(ctx, "DATA-Ausgabe bereit");
+
+    if (daemon_client_slots_output_ready(channel->conf_slots, MAX_CLIENTS, readfds))
+        daemon_debug_ctx(ctx, "CONF-Ausgabe bereit");
+
+    radio_channel_flush_ready(channel, readfds);
+}
+
 static void daemon_process_ready_sockets(ConfigDispatchContext<SX1278> *config_433_ctx,
                                          ConfigDispatchContext<RFM95> *config_868_ctx,
                                          DataTxDaemonContext<SX1278> *data_tx_433_ctx,
@@ -1056,8 +1143,8 @@ static void daemon_process_ready_sockets(ConfigDispatchContext<SX1278> *config_4
                                          const EventLoopReadySet *readfds,
                                          uint8_t *buf)
 {
-    radio_channel_accept_ready(&channel_433, readfds);
-    radio_channel_accept_ready(&channel_868, readfds);
+    daemon_accept_channel_logged(&channel_433, readfds, "CLIENT433");
+    daemon_accept_channel_logged(&channel_868, readfds, "CLIENT868");
 
     data_tx_process_slots("433", client_data433_slots, MAX_CLIENTS,
                           readfds, send_data_chunk<SX1278>, data_tx_433_ctx);
@@ -1065,8 +1152,8 @@ static void daemon_process_ready_sockets(ConfigDispatchContext<SX1278> *config_4
                           readfds, send_data_chunk<RFM95>, data_tx_868_ctx);
 
     process_config_dispatch(config_433_ctx, config_868_ctx, readfds, buf);
-    radio_channel_flush_ready(&channel_433, readfds);
-    radio_channel_flush_ready(&channel_868, readfds);
+    daemon_flush_channel_logged(&channel_433, readfds, "CLIENT433");
+    daemon_flush_channel_logged(&channel_868, readfds, "CLIENT868");
 }
 
 
