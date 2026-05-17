@@ -140,6 +140,7 @@
 #include "daemon_timing.h"
 #include "daemon_lifecycle.h"
 #include "data_tx.h"
+#include "tx_result.h"
 #include "rf_packet.h"
 #include "event_loop.h"
 #include "unix_socket.h"
@@ -387,11 +388,11 @@ static void lora_print_tx_first_bytes(const char *tag,
     printf("...\n");
 }
 
-void lora_send(uint8_t *buf, size_t len, int band) {
+TxResult lora_send(uint8_t *buf, size_t len, int band) {
     if (!lora_send_valid_band(band)) {
         printf("[SEND %d] invalid band\n", band);
         fflush(stdout);
-        return;
+        return TX_RESULT_INVALID_BAND;
     }
 
     RfPacketValidation packet_state = rf_packet_validate(buf, len);
@@ -399,7 +400,7 @@ void lora_send(uint8_t *buf, size_t len, int band) {
         printf("[SEND %d] invalid TX packet: %s (%zu bytes)\n",
                band, rf_packet_validation_message(packet_state), len);
         fflush(stdout);
-        return;
+        return TX_RESULT_INVALID_PACKET;
     }
 
     // WICHTIG: Buffer kopieren, damit er nicht überschrieben wird!
@@ -412,7 +413,8 @@ void lora_send(uint8_t *buf, size_t len, int band) {
     if (band == 433) {
         if(txBusy433) {
             printf("[433] TX BUSY - überspringen\n");
-            return;
+            fflush(stdout);
+            return TX_RESULT_BUSY;
         }
         txBusy433 = true;
 
@@ -461,11 +463,6 @@ void lora_send(uint8_t *buf, size_t len, int band) {
             printf("[433] transmit returned OK\n");
         }
 
-        // EXTRA lange warten für SF12!
-        // SF12, BW125, CR4/5, 5 Bytes Payload: ~370ms + Overhead
-        //        printf("[433] Warte 1 Sekunde Sicherheit...\n");
-        //        usleep(1000000); // 1 Sekunde!
-
         // Nach dem Senden: IRQ clearen und Callback wieder aktivieren
         // Callback wird für LoRa UND FSK neu gesetzt - transmit() kann ihn löschen!
         radio_433->clearIrq(0xFFFFFFFF);
@@ -475,10 +472,15 @@ void lora_send(uint8_t *buf, size_t len, int band) {
         txBusy433 = false;
         radio_433->startReceive();
 
+        return state == RADIOLIB_ERR_NONE
+            ? TX_RESULT_OK
+            : TX_RESULT_RADIO_ERROR;
+
     } else if (band == 868) {
         if(txBusy868) {
             printf("[868] TX BUSY - überspringen\n");
-            return;
+            fflush(stdout);
+            return TX_RESULT_BUSY;
         }
         txBusy868 = true;
 
@@ -512,8 +514,15 @@ void lora_send(uint8_t *buf, size_t len, int band) {
 
         txBusy868 = false;
         radio_868->startReceive();
+
+        return state == RADIOLIB_ERR_NONE
+            ? TX_RESULT_OK
+            : TX_RESULT_RADIO_ERROR;
     }
+
+    return TX_RESULT_INVALID_BAND;
 }
+
 
 
 /* --- CONFIG apply module ------------------------------------------------ */
@@ -723,17 +732,26 @@ static int send_data_chunk(uint8_t *chunk, size_t len, size_t offset, void *ctx)
     // CAD guard: LoRa only.
     if (data_tx_wait_channel_free(tx)) {
         printf("[%s] CAD-Timeout: Kanal dauerhaft belegt, Paket verworfen\n", tx->tag);
+        printf("[%s] DATA-TX abgebrochen: %s\n", tx->tag,
+               tx_result_name(TX_RESULT_CAD_TIMEOUT));
         return 1;
     }
 
     printf("  -> Sende Chunk: %zu Bytes (Offset: %zu)\n", len, offset);
 
     data_tx_led(tx->band, 1);
-    lora_send(chunk, len, tx->band);
+    TxResult result = lora_send(chunk, len, tx->band);
     data_tx_led(tx->band, 0);
+
+    if (!tx_result_is_ok(result)) {
+        printf("[%s] DATA-TX abgebrochen: %s\n", tx->tag,
+               tx_result_name(result));
+        return 1;
+    }
 
     return 0;
 }
+
 
 /* --- Runtime context factories ------------------------------------------- */
 

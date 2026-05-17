@@ -227,6 +227,60 @@ static void test_process_clients_epoll(void)
     event_loop_close(&set);
 }
 
+
+static void test_process_clients_abort_on_handler_error(void)
+{
+    const char *name = "process clients abort on handler error";
+    int sv[2];
+    int clients[2] = {0};
+    EventLoopSet set;
+    EventLoopReadySet ready;
+    uint8_t payload[600];
+    ChunkRecorder rec = {0, {0}, {0}};
+
+    memset(payload, 'B', sizeof(payload));
+
+    if (socketpair(AF_UNIX, SOCK_STREAM, 0, sv) != 0) {
+        g_fail++;
+        printf("[FAIL] %s socketpair\n", name);
+        return;
+    }
+
+    clients[0] = sv[1];
+
+    if (event_loop_init(&set) != 0) {
+        close(sv[0]);
+        client_set_close_slot(clients, 0);
+        g_fail++;
+        printf("[FAIL] %s epoll init\n", name);
+        return;
+    }
+
+    if (write(sv[0], payload, sizeof(payload)) != (ssize_t)sizeof(payload)) {
+        close(sv[0]);
+        client_set_close_slot(clients, 0);
+        event_loop_close(&set);
+        g_fail++;
+        printf("[FAIL] %s write\n", name);
+        return;
+    }
+
+    event_loop_add_fd(&set, sv[1]);
+    expect_int(name, event_loop_wait(&set, &ready, 100000), 1);
+
+    data_tx_process_clients(name, clients, 2, &ready, stop_on_second_chunk, &rec);
+
+    expect_int("process abort call count", rec.calls, 2);
+    expect_size("process abort first chunk", rec.sizes[0], 255);
+    expect_size("process abort second chunk", rec.sizes[1], 255);
+    expect_size("process abort second offset", rec.offsets[1], 255);
+
+    close(sv[0]);
+    client_set_close_slot(clients, 0);
+    event_loop_close(&set);
+}
+
+
 /* --- CLI parsing and test sequence --- */
 
 int main(int argc, char **argv)
@@ -253,6 +307,7 @@ int main(int argc, char **argv)
     test_chunk_iterator_stop();
     test_client_set_close_all();
     test_process_clients_epoll();
+    test_process_clients_abort_on_handler_error();
 
     printf("\nSummary: ok=%d fail=%d\n", g_ok, g_fail);
 

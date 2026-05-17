@@ -22,3 +22,4 @@
 /loradaemon_refactor/tests/test_client_slow_output
 /loradaemon_refactor/tests/test_config_value
 /loradaemon_refactor/tests/test_config_policy
+/loradaemon_refactor/tests/test_tx_result

@@ -55,7 +55,11 @@ void data_tx_process_clients_with_output(const char *tag,
             if(n > 0) {
                 printf("[DEBUG %s] %zd Bytes vom Socket erhalten. Zerteile in LoRa-Pakete...\n", tag, n);
 
-                data_tx_for_each_chunk(large_buf, (size_t)n, handler, ctx);
+                size_t processed = data_tx_for_each_chunk(large_buf, (size_t)n, handler, ctx);
+                if (processed < (size_t)n) {
+                    printf("[DEBUG %s] DATA-TX aborted after %zu/%zd bytes\n",
+                           tag, processed, n);
+                }
             }
         }
     }
