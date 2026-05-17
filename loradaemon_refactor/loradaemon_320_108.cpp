@@ -1320,10 +1320,9 @@ static bool daemon_parse_args(int argc, char *argv[])
     return is_daemon;
 }
 
-// --- Unix socket setup moved to unix_socket.cpp ---
-/* --- Main entry: startup, contexts and polling loop ----------------------- */
-
-int main(int argc, char *argv[]) {
+/* --- Startup sequence: signals, args, background mode and radio IO ------- */
+static void daemon_startup_sequence(int argc, char *argv[])
+{
     daemon_ignore_sigpipe();
     bool is_daemon = daemon_parse_args(argc, argv);
 
@@ -1332,6 +1331,13 @@ int main(int argc, char *argv[]) {
         daemon_enter_background();
 
     daemon_radio_io_init();
+}
+
+// --- Unix socket setup moved to unix_socket.cpp ---
+/* --- Main entry: startup, contexts and polling loop ----------------------- */
+
+int main(int argc, char *argv[]) {
+    daemon_startup_sequence(argc, argv);
 
     DaemonMainContext main_ctx;
     daemon_main_context_init(&main_ctx);
