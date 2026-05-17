@@ -140,6 +140,7 @@
 #include "daemon_timing.h"
 #include "daemon_lifecycle.h"
 #include "data_tx.h"
+#include "rf_packet.h"
 #include "event_loop.h"
 #include "unix_socket.h"
 #include "client_set.h"
@@ -335,18 +336,69 @@ void setFlashFlag433(void) {
 }
 
 // --- LoRa senden (DEBUG + FIX) ---
+static bool lora_send_valid_band(int band)
+{
+    return band == 433 || band == 868;
+}
+
+static void lora_print_tx_preview(const uint8_t *buf, size_t len)
+{
+    size_t preview_len = rf_packet_preview_len(len);
+
+    for(size_t i = 0; i < preview_len; i++)
+        printf("%c", buf[i] >= 32 && buf[i] <= 126 ? buf[i] : '.');
+
+    printf(" (HEX: ");
+    for(size_t i = 0; i < preview_len; i++)
+        printf("%02X ", buf[i]);
+    printf(")");
+
+    if (preview_len < len)
+        printf(" ...");
+
+    printf("\n");
+}
+
+static void lora_print_tx_first_bytes(const char *tag,
+                                      const uint8_t *buf,
+                                      size_t len)
+{
+    size_t preview_len = len < 7 ? len : 7;
+
+    printf("[%s] Sende jetzt %zu Bytes", tag, len);
+    if (preview_len > 0) {
+        printf(" (");
+        for (size_t i = 0; i < preview_len; i++) {
+            if (i > 0)
+                printf(" ");
+            printf("0x%02X", buf[i]);
+        }
+        printf(")");
+    }
+    printf("...\n");
+}
+
 void lora_send(uint8_t *buf, size_t len, int band) {
+    if (!lora_send_valid_band(band)) {
+        printf("[SEND %d] invalid band\n", band);
+        fflush(stdout);
+        return;
+    }
+
+    RfPacketValidation packet_state = rf_packet_validate(buf, len);
+    if (packet_state != RF_PACKET_VALID) {
+        printf("[SEND %d] invalid TX packet: %s (%zu bytes)\n",
+               band, rf_packet_validation_message(packet_state), len);
+        fflush(stdout);
+        return;
+    }
+
     // WICHTIG: Buffer kopieren, damit er nicht überschrieben wird!
-    uint8_t send_buf[256];
+    uint8_t send_buf[RF_PACKET_MAX_PAYLOAD_LEN];
     memcpy(send_buf, buf, len);
 
     printf("[SEND %d] %zu Bytes: ", band, len);
-    for(size_t i = 0; i < std::min(len, (size_t)20); i++)
-        printf("%c", send_buf[i] >= 32 && send_buf[i] <= 126 ? send_buf[i] : '.');
-    printf(" (HEX: ");
-    for(size_t i = 0; i < std::min(len, (size_t)20); i++)
-        printf("%02X ", send_buf[i]);
-    printf(")\n");
+    lora_print_tx_preview(send_buf, len);
 
     if (band == 433) {
         if(txBusy433) {
@@ -389,9 +441,7 @@ void lora_send(uint8_t *buf, size_t len, int band) {
         radio_433->clearIrq(0xFFFFFFFF);
 
         printf("[433] Radio neu konfiguriert für TX\n");
-        printf("[433] Sende jetzt %zu Bytes (0x%02X 0x%02X 0x%02X 0x%02X 0x%02X 0x%02X 0x%02X)...\n",
-               len, send_buf[0], send_buf[1], send_buf[2], send_buf[3], send_buf[4],
-               len > 5 ? send_buf[5] : 0, len > 6 ? send_buf[6] : 0);
+        lora_print_tx_first_bytes("433", send_buf, len);
 
         // Zurück zu transmit() - das sollte blockierend sein
         int state = radio_433->transmit(send_buf, len);

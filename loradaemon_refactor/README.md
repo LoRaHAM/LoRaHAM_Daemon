@@ -192,4 +192,5 @@ The original project is licensed under GNU GPL v3 with additional conditions sta
 
 ## Changelog
 
+- Validate TX packet buffers and payload length before copying or transmitting.
 - Drop RX packets when RadioLib reports read/CRC/header errors; keep per-band drop counters with rate-limited logging.

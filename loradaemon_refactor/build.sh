@@ -28,6 +28,7 @@ daemon_support_sources=(
   "$SCRIPT_DIR/daemon_timing.cpp"
   "$SCRIPT_DIR/daemon_lifecycle.cpp"
   "$SCRIPT_DIR/data_tx.cpp"
+  "$SCRIPT_DIR/rf_packet.cpp"
 )
 
 try_source_radiolib_dir() {
@@ -250,6 +251,16 @@ build_one_data_tx_test() {
     "${event_loop_sources[@]}"
 }
 
+build_one_rf_packet_test() {
+  local src="$1"
+  local out="$2"
+
+  build_one_cpp_sources \
+    "$out" \
+    "$src" \
+    "$SCRIPT_DIR/rf_packet.cpp"
+}
+
 build_one_config_dispatch_test() {
   local src="$1"
   local out="$2"
@@ -271,6 +282,7 @@ build_one_config_dispatch_test() {
 
 build_tests() {
   build_one_data_tx_test "$TEST_DIR/test_data_tx.cpp" "$TEST_DIR/test_data_tx"
+  build_one_rf_packet_test "$TEST_DIR/test_rf_packet.cpp" "$TEST_DIR/test_rf_packet"
   build_one_event_loop_test "$TEST_DIR/test_event_loop.cpp" "$TEST_DIR/test_event_loop"
   build_one_timing_test "$TEST_DIR/test_daemon_timing.cpp" "$TEST_DIR/test_daemon_timing"
   build_one_lifecycle_test "$TEST_DIR/test_daemon_lifecycle.cpp" "$TEST_DIR/test_daemon_lifecycle"
