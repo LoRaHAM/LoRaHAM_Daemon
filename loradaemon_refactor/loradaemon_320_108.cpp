@@ -669,7 +669,7 @@ static int send_data_chunk(uint8_t *chunk, size_t len, size_t offset, void *ctx)
 
 static void process_config_dispatch(ConfigDispatchContext<SX1278> *config_433_ctx,
                                     ConfigDispatchContext<RFM95> *config_868_ctx,
-                                    const fd_set *readfds,
+                                    const EventLoopReadySet *readfds,
                                     uint8_t *buf)
 {
     config_dispatch_context<SX1278>(config_433_ctx, MAX_CLIENTS, readfds, buf);

@@ -35,16 +35,16 @@ int event_loop_select_fd_limit(const EventLoopSelectSet *set)
 }
 
 
-int event_loop_select_ready_fd(const fd_set *ready, int fd)
+int event_loop_select_ready_fd(const EventLoopReadySet *ready, int fd)
 {
     if (fd < 0)
         return 0;
 
-    return FD_ISSET(fd, ready) ? 1 : 0;
+    return FD_ISSET(fd, &ready->readfds) ? 1 : 0;
 }
 
 int event_loop_select_wait(const EventLoopSelectSet *set,
-                           fd_set *ready,
+                           EventLoopReadySet *ready,
                            int timeout_usec)
 {
     struct timeval tv;
@@ -52,9 +52,9 @@ int event_loop_select_wait(const EventLoopSelectSet *set,
     tv.tv_sec = timeout_usec / 1000000;
     tv.tv_usec = timeout_usec % 1000000;
 
-    *ready = set->readfds;
+    ready->readfds = set->readfds;
 
-    return select(set->maxfd, ready, NULL, NULL, &tv);
+    return select(set->maxfd, &ready->readfds, NULL, NULL, &tv);
 }
 
 /* --- backend-neutral event-loop wrapper --- */

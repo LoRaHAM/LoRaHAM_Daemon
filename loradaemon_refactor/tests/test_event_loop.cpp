@@ -68,7 +68,7 @@ static void test_select_set_ignores_negative_fd(void)
 static void test_select_wait_readable_pipe(void)
 {
     EventLoopSelectSet set;
-    fd_set ready;
+    EventLoopReadySet ready;
     int fds[2];
     char ch = 'x';
 
@@ -91,7 +91,8 @@ static void test_select_wait_readable_pipe(void)
 
     expect_int("select wait returns readable",
                event_loop_select_wait(&set, &ready, 100000), 1);
-    expect_int("select wait marks pipe readable", FD_ISSET(fds[0], &ready) ? 1 : 0, 1);
+    expect_int("select wait marks pipe readable",
+               event_loop_select_ready_fd(&ready, fds[0]), 1);
 
     close(fds[0]);
     close(fds[1]);
@@ -100,7 +101,7 @@ static void test_select_wait_readable_pipe(void)
 static void test_select_wait_timeout(void)
 {
     EventLoopSelectSet set;
-    fd_set ready;
+    EventLoopReadySet ready;
 
     event_loop_select_reset(&set);
 
@@ -112,7 +113,7 @@ static void test_select_wait_timeout(void)
 static void test_select_ready_fd(void)
 {
     EventLoopSelectSet set;
-    fd_set ready;
+    EventLoopReadySet ready;
     int fds[2];
     char ch = 'x';
 
