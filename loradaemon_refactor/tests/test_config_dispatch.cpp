@@ -158,6 +158,65 @@ static void test_dispatch_ready_client(void)
     client_set_close_slot(clients, 0);
 }
 
+
+static void test_dispatch_ready_client_epoll(void)
+{
+    int sv[2];
+    int clients[2] = {0};
+    uint8_t buf[buf_SIZE];
+    EventLoopSet set;
+    EventLoopReadySet readfds;
+    FakeRadio radio;
+    volatile RadioMode_t mode = RADIO_MODE_LORA;
+    volatile bool getrssi_active = false;
+
+    memset(&g_apply_state, 0, sizeof(g_apply_state));
+    memset(buf, 0, sizeof(buf));
+
+    if (!make_socket_pair(sv)) {
+        g_fail++;
+        return;
+    }
+
+    clients[0] = sv[1];
+
+    if (event_loop_init_epoll(&set) != 0) {
+        close(sv[0]);
+        client_set_close_slot(clients, 0);
+        g_fail++;
+        printf("[FAIL] config epoll init\n");
+        return;
+    }
+
+    const char *cmd = "SET GETRSSI=1";
+    write(sv[0], cmd, strlen(cmd));
+
+    event_loop_add_fd(&set, sv[1]);
+    expect_int("ready epoll wait", event_loop_wait(&set, &readfds, 100000), 1);
+
+    ConfigDispatchContext<FakeRadio> ctx = {
+        clients,
+        &radio,
+        "CONF TEST",
+        "[TEST]",
+        &mode,
+        &getrssi_active,
+        record_apply_config,
+        fake_rx_callback
+    };
+
+    config_dispatch_context<FakeRadio>(&ctx, 2, &readfds, buf);
+
+    expect_int("epoll apply called once", g_apply_state.calls, 1);
+    expect_str("epoll apply cmd", g_apply_state.cmd, "SET GETRSSI=1");
+    expect_int("epoll callback restored", radio.callback_count, 1);
+    expect_int("epoll startReceive called", radio.start_receive_count, 1);
+
+    event_loop_close(&set);
+    close(sv[0]);
+    client_set_close_slot(clients, 0);
+}
+
 static void test_dispatch_ignores_not_ready_client(void)
 {
     int sv[2];
@@ -273,6 +332,7 @@ int main(int argc, char **argv)
     }
 
     test_dispatch_ready_client();
+    test_dispatch_ready_client_epoll();
     test_dispatch_ignores_not_ready_client();
     test_dispatch_closes_eof_client();
 

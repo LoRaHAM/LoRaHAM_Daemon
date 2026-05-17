@@ -1,8 +1,11 @@
 #include "../data_tx.h"
+#include "../client_set.h"
 
 #include <stdio.h>
 #include <stdint.h>
 #include <string.h>
+#include <unistd.h>
+#include <sys/socket.h>
 
 /*
  * DATA TX unit tests.
@@ -107,6 +110,74 @@ static void test_chunk_iterator_stop(void)
     expect_int("iterator stop call count", rec.calls, 2);
 }
 
+
+/* --- DATA TX dispatch via event loop --- */
+
+static void test_process_clients_backend(const char *name, int use_epoll)
+{
+    int sv[2];
+    int clients[2] = {0};
+    EventLoopSet set;
+    EventLoopReadySet ready;
+    uint8_t payload[300];
+    ChunkRecorder rec = {0, {0}, {0}};
+
+    memset(payload, 'A', sizeof(payload));
+
+    if (socketpair(AF_UNIX, SOCK_STREAM, 0, sv) != 0) {
+        g_fail++;
+        printf("[FAIL] %s socketpair\n", name);
+        return;
+    }
+
+    clients[0] = sv[1];
+
+    if (use_epoll) {
+        if (event_loop_init_epoll(&set) != 0) {
+            close(sv[0]);
+            client_set_close_slot(clients, 0);
+            g_fail++;
+            printf("[FAIL] %s epoll init\n", name);
+            return;
+        }
+    } else {
+        event_loop_init_select(&set);
+    }
+
+    if (write(sv[0], payload, sizeof(payload)) != (ssize_t)sizeof(payload)) {
+        close(sv[0]);
+        client_set_close_slot(clients, 0);
+        event_loop_close(&set);
+        g_fail++;
+        printf("[FAIL] %s write\n", name);
+        return;
+    }
+
+    event_loop_add_fd(&set, sv[1]);
+    expect_int(name, event_loop_wait(&set, &ready, 100000), 1);
+
+    data_tx_process_clients(name, clients, 2, &ready, record_chunk, &rec);
+
+    expect_int("process clients call count", rec.calls, 2);
+    expect_size("process clients first chunk", rec.sizes[0], 255);
+    expect_size("process clients second chunk", rec.sizes[1], 45);
+    expect_size("process clients second offset", rec.offsets[1], 255);
+
+    close(sv[0]);
+    client_set_close_slot(clients, 0);
+    event_loop_close(&set);
+}
+
+static void test_process_clients_select(void)
+{
+    test_process_clients_backend("process clients select wait", 0);
+}
+
+static void test_process_clients_epoll(void)
+{
+    test_process_clients_backend("process clients epoll wait", 1);
+}
+
 /* --- CLI parsing and test sequence --- */
 
 int main(int argc, char **argv)
@@ -131,6 +202,8 @@ int main(int argc, char **argv)
     test_chunk_size();
     test_chunk_iterator();
     test_chunk_iterator_stop();
+    test_process_clients_epoll();
+    test_process_clients_select();
 
     printf("\nSummary: ok=%d fail=%d\n", g_ok, g_fail);
 
