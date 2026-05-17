@@ -1,6 +1,7 @@
 # LoRaHAM_Daemon
 
 ## Changelog
+- Funktion: Standardausgabe für TX/CONFIG auf weniger Rauschen reduziert.
 - Funktion: RX/CAD/RSSI-Pfade um kurze Kontext-Debug-Logs ergänzt.
 - Funktion: DATA-TX-Pfad um kurze Kontext-Debug-Logs ergänzt.
 - Funktion: CONFIG-Pfad um kurze Kontext-Debug-Logs ergänzt.

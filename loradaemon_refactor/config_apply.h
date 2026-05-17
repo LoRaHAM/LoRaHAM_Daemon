@@ -42,6 +42,14 @@ void apply_fsk_param(RFM95 &radio, const char *tag,
 //   SET GETRSSI=1   -> getrssi_flag=true  (10 Hz RSSI-Stream an Conf-Clients)
 //   SET GETRSSI=0   -> getrssi_flag=false (Stream aus)
 //   Kein MODE=      -> aktueller Modus bleibt, volle Rückwärtskompatibilität
+static inline void config_apply_print_prefix(const char *tag, bool *printed)
+{
+    if (!*printed) {
+        printf("[%s]", tag);
+        *printed = true;
+    }
+}
+
 template<typename RadioT>
 void parse_and_apply_config_generic(RadioT &radio, const char *tag, const char *cmd,
                                     volatile RadioMode_t &mode_flag,
@@ -66,6 +74,10 @@ void parse_and_apply_config_generic(RadioT &radio, const char *tag, const char *
         return;
     }
 
+
+
+    bool printed = false;
+
     // --- 1. Pass: MODE= zuerst, GETRSSI= direkt, Rest sammeln ---
     std::vector<std::pair<std::string,std::string>> tokens;
     std::string mode_val = parsed.mode;
@@ -76,6 +88,7 @@ void parse_and_apply_config_generic(RadioT &radio, const char *tag, const char *
 
         if(key == "GETRSSI") {
             int v = 0;
+            config_apply_print_prefix(tag, &printed);
             if(config_value_parse_bool01_exact(val, &v)) {
                 getrssi_flag = (v != 0);
                 if(v == 1) printf(" GETRSSI=[92m1[0m");
@@ -90,8 +103,10 @@ void parse_and_apply_config_generic(RadioT &radio, const char *tag, const char *
 
     // --- MODE= auswerten und Radio ggf. neu initialisieren ---
     if(!mode_val.empty()) {
+        config_apply_print_prefix(tag, &printed);
+
         if(mode_val == "FSK") {
-            printf("[%s] MODE=FSK -> beginFSK()", tag);
+            printf(" MODE=FSK -> beginFSK()");
             int state = radio.beginFSK();
             if(state == RADIOLIB_ERR_NONE) {
                 mode_flag = RADIO_MODE_FSK;
@@ -100,7 +115,7 @@ void parse_and_apply_config_generic(RadioT &radio, const char *tag, const char *
                 printf(" \033[91;5mFEHLER:%d\033[0m", state);
             }
         } else if(mode_val == "LORA") {
-            printf("[%s] MODE=LORA -> begin()", tag);
+            printf(" MODE=LORA -> begin()");
             int state = radio.begin();
             if(state == RADIOLIB_ERR_NONE) {
                 mode_flag = RADIO_MODE_LORA;
@@ -109,7 +124,7 @@ void parse_and_apply_config_generic(RadioT &radio, const char *tag, const char *
                 printf(" \033[91;5mFEHLER:%d\033[0m", state);
             }
         } else {
-            printf("[%s] MODE=\033[91;5m%s\033[0m (unbekannt, ignoriert)", tag, mode_val.c_str());
+            printf(" MODE=\033[91;5m%s\033[0m (unbekannt, ignoriert)", mode_val.c_str());
         }
     }
 

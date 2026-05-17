@@ -514,41 +514,55 @@ static bool daemon_radio_ready(int band)
     return radio_controller_ready(&radio_controller_868);
 }
 
-static void lora_print_tx_preview(const uint8_t *buf, size_t len)
+static const char *lora_tx_log_ctx(int band)
 {
-    size_t preview_len = rf_packet_preview_len(len);
-
-    for(size_t i = 0; i < preview_len; i++)
-        printf("%c", buf[i] >= 32 && buf[i] <= 126 ? buf[i] : '.');
-
-    printf(" (HEX: ");
-    for(size_t i = 0; i < preview_len; i++)
-        printf("%02X ", buf[i]);
-    printf(")");
-
-    if (preview_len < len)
-        printf(" ...");
-
-    printf("\n");
+    return band == 433 ? "TX433" : "TX868";
 }
 
-static void lora_print_tx_first_bytes(const char *tag,
+static void lora_debug_tx_preview(const char *ctx,
+                                  const uint8_t *buf,
+                                  size_t len)
+{
+    size_t preview_len = rf_packet_preview_len(len);
+    char msg[512];
+    size_t pos = 0;
+
+    pos += snprintf(msg + pos, sizeof(msg) - pos, "%zu Byte: ", len);
+
+    for(size_t i = 0; i < preview_len && pos < sizeof(msg); i++)
+        pos += snprintf(msg + pos, sizeof(msg) - pos, "%c",
+                        buf[i] >= 32 && buf[i] <= 126 ? buf[i] : '.');
+
+    pos += snprintf(msg + pos, sizeof(msg) - pos, " HEX:");
+
+    for(size_t i = 0; i < preview_len && pos < sizeof(msg); i++)
+        pos += snprintf(msg + pos, sizeof(msg) - pos, " %02X", buf[i]);
+
+    if (preview_len < len && pos < sizeof(msg))
+        snprintf(msg + pos, sizeof(msg) - pos, " ...");
+
+    daemon_debug_ctx(ctx, "%s", msg);
+}
+
+static void lora_debug_tx_first_bytes(const char *ctx,
                                       const uint8_t *buf,
                                       size_t len)
 {
     size_t preview_len = len < 7 ? len : 7;
+    char msg[160];
+    size_t pos = 0;
 
-    printf("[%s] Sende jetzt %zu Bytes", tag, len);
+    pos += snprintf(msg + pos, sizeof(msg) - pos, "Sende jetzt %zu Byte", len);
     if (preview_len > 0) {
-        printf(" (");
-        for (size_t i = 0; i < preview_len; i++) {
-            if (i > 0)
-                printf(" ");
-            printf("0x%02X", buf[i]);
+        pos += snprintf(msg + pos, sizeof(msg) - pos, " (");
+        for (size_t i = 0; i < preview_len && pos < sizeof(msg); i++) {
+            pos += snprintf(msg + pos, sizeof(msg) - pos,
+                            "%s0x%02X", i > 0 ? " " : "", buf[i]);
         }
-        printf(")");
+        snprintf(msg + pos, sizeof(msg) - pos, ")");
     }
-    printf("...\n");
+
+    daemon_debug_ctx(ctx, "%s", msg);
 }
 
 template<typename RadioT>
@@ -584,6 +598,7 @@ static TxResult lora_send_controller(RadioController<RadioT> *ctrl,
 {
     int band = radio_controller_band_number(ctrl);
     const char *tag = radio_controller_tag(ctrl);
+    const char *tx_ctx = lora_tx_log_ctx(band);
 
     if (!ctrl || !ctrl->radio || !radio_controller_ready(ctrl)) {
         printf("[SEND %d] radio not ready: %s\n",
@@ -604,8 +619,7 @@ static TxResult lora_send_controller(RadioController<RadioT> *ctrl,
     uint8_t send_buf[RF_PACKET_MAX_PAYLOAD_LEN];
     memcpy(send_buf, buf, len);
 
-    printf("[SEND %d] %zu Bytes: ", band, len);
-    lora_print_tx_preview(send_buf, len);
+    lora_debug_tx_preview(tx_ctx, send_buf, len);
 
     if(ctrl->tx_busy) {
         printf("[%s] TX BUSY - überspringen\n", tag);
@@ -631,23 +645,21 @@ static TxResult lora_send_controller(RadioController<RadioT> *ctrl,
         // Nochmal IRQs clearen
         ctrl->radio->clearIrq(0xFFFFFFFF);
 
-        printf("[433] Radio neu konfiguriert für TX\n");
-        lora_print_tx_first_bytes("433", send_buf, len);
+        daemon_debug_ctx(tx_ctx, "Radio neu konfiguriert");
+        lora_debug_tx_first_bytes(tx_ctx, send_buf, len);
     }
 
     // WICHTIG: transmit() ist blockierend und wartet bis fertig!
     int state = ctrl->radio->transmit(send_buf, len);
 
     if(state != RADIOLIB_ERR_NONE) {
+        daemon_debug_ctx(tx_ctx, "transmit Fehler %d", state);
         if (ctrl->band == RADIO_BAND_433)
             printf("[433] transmit ERROR: %d\n", state);
         else
             printf("[868] TX ERROR: %d\n", state);
     } else {
-        if (ctrl->band == RADIO_BAND_433)
-            printf("[433] transmit returned OK\n");
-        else
-            printf("[868] TX OK - %zu Bytes gesendet\n", len);
+        daemon_debug_ctx(tx_ctx, "transmit OK");
     }
 
     if (ctrl->band == RADIO_BAND_868)
@@ -1033,8 +1045,8 @@ static ConfigDispatchContext<SX1278> daemon_config_433_context(void)
     ConfigDispatchContext<SX1278> ctx = {
         client_conf433_slots,
         &radio_controller_433,
-        "CONF 433",
-        "[CONF433]",
+        "CONF433",
+        NULL,
         config_apply_command<SX1278>,
         daemon_config_log("CONFIG433")
     };
@@ -1047,8 +1059,8 @@ static ConfigDispatchContext<RFM95> daemon_config_868_context(void)
     ConfigDispatchContext<RFM95> ctx = {
         client_conf868_slots,
         &radio_controller_868,
-        "CONF 868",
-        "[CONF868]",
+        "CONF868",
+        NULL,
         config_apply_command<RFM95>,
         daemon_config_log("CONFIG868")
     };

@@ -92,20 +92,14 @@ static void config_dispatch_apply_line(const char *line, void *user)
     if(!ctx->ctrl || !ctx->ctrl->radio ||
        !radio_controller_ready(ctx->ctrl)) {
         config_dispatch_log_message(&ctx->log, "Radio nicht bereit");
-
-        if(ctx->prefix)
-            printf("%s", ctx->prefix);
-
-        printf(" RADIO=%s CONFIG ignored\n",
+        printf("[%s] RADIO=%s CONFIG ignored\n",
+               ctx->tag,
                radio_health_name(radio_controller_health(ctx->ctrl)));
         fflush(stdout);
         return;
     }
 
     config_dispatch_log_message(&ctx->log, "Apply startet");
-
-    if(ctx->prefix)
-        printf("%s", ctx->prefix);
 
     ctx->apply_config(*ctx->ctrl->radio, ctx->tag, line,
                       ctx->ctrl->mode, ctx->ctrl->getrssi_active);
