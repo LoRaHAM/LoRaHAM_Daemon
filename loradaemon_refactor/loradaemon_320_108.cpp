@@ -623,6 +623,11 @@ void lora_init() {
     fflush(stdout);
 }
 
+static void daemon_radio_io_init(void)
+{
+    daemon_radio_io_init();
+}
+
 /* --- Data client TX handling --- */
 
 
