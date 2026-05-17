@@ -63,6 +63,7 @@ tests=(
   "$TEST_DIR/test_client_output_queue"
   "$TEST_DIR/test_client_nonblocking"
   "$TEST_DIR/test_client_queued_broadcast"
+  "$TEST_DIR/test_client_slow_output"
   "$TEST_DIR/test_event_loop_output_flush"
   "$TEST_DIR/test_client_read_disconnect_cleanup"
   "$TEST_DIR/test_rf_packet"
