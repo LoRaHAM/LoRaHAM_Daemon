@@ -37,4 +37,9 @@ require "$CONFIG_DISPATCH" "CONFIG ignored" "CONFIG ignored log"
 
 require "$REFACTOR_DIR/build.sh" "radio_health.cpp" "radio health linked in build"
 
+if ! grep -Fq '"$SCRIPT_DIR/radio_health.cpp" \' "$REFACTOR_DIR/build.sh"; then
+  echo "ERROR: radio_health.cpp in build.sh must keep line continuation." >&2
+  rc=1
+fi
+
 exit "$rc"

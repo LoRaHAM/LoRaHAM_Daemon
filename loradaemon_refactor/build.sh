@@ -404,7 +404,7 @@ build_one_config_dispatch_test() {
     "${radiolib_cflags[@]}" \
     "$src" \
     "$SCRIPT_DIR/client_set.cpp" \
-    "$SCRIPT_DIR/radio_health.cpp"
+    "$SCRIPT_DIR/radio_health.cpp" \
     "$SCRIPT_DIR/config_stream.cpp" \
     "${event_loop_sources[@]}"
 }
