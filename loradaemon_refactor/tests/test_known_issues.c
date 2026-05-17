@@ -10,72 +10,6 @@
 static const char *g_bin = NULL;
 
 
-/* --- Desired: command parser should buffer fragmented stream input --- */
-
-static int desired_fragmented_conf_command_433(void)
-{
-    int fd = connect_unix_retry(SOCK_CONF_433, 2000);
-
-    if (fd < 0)
-        return TEST_FAIL;
-
-    if (write_all(fd, "SET GETRSSI=", strlen("SET GETRSSI=")) < 0) {
-        close(fd);
-        return TEST_FAIL;
-    }
-
-    usleep(250000);
-
-    if (write_all(fd, "1\n", strlen("1\n")) < 0) {
-        close(fd);
-        return TEST_FAIL;
-    }
-
-    if (wait_for_matching_line(fd,
-                               "^RSSI=-?[0-9]+\\.[0-9][0-9]$",
-                               DEFAULT_RSSI_TIMEOUT_MS,
-                               NULL,
-                               0) < 0) {
-        close(fd);
-        return TEST_FAIL;
-    }
-
-    (void)write_all(fd, "SET GETRSSI=0\n", strlen("SET GETRSSI=0\n"));
-    close(fd);
-
-    return TEST_PASS;
-}
-
-/* --- Desired: multiple newline-separated commands in one write --- */
-
-static int desired_multiple_commands_one_write_433(void)
-{
-    int fd = connect_unix_retry(SOCK_CONF_433, 2000);
-    const char *cmd = "BOGUS\nSET GETRSSI=1\n";
-
-    if (fd < 0)
-        return TEST_FAIL;
-
-    if (write_all(fd, cmd, strlen(cmd)) < 0) {
-        close(fd);
-        return TEST_FAIL;
-    }
-
-    if (wait_for_matching_line(fd,
-                               "^RSSI=-?[0-9]+\\.[0-9][0-9]$",
-                               DEFAULT_RSSI_TIMEOUT_MS,
-                               NULL,
-                               0) < 0) {
-        close(fd);
-        return TEST_FAIL;
-    }
-
-    (void)write_all(fd, "SET GETRSSI=0\n", strlen("SET GETRSSI=0\n"));
-    close(fd);
-
-    return TEST_PASS;
-}
-
 /* --- Desired: parser should expose invalid numeric values as errors --- */
 
 static int desired_strict_numeric_validation(void)
@@ -122,10 +56,6 @@ int main(int argc, char **argv)
         return 1;
     }
 
-    run_xfail_test("desired: fragmented config command is line-buffered",
-                   desired_fragmented_conf_command_433);
-    run_xfail_test("desired: multiple commands in one write are processed",
-                   desired_multiple_commands_one_write_433);
     run_xfail_test("desired: strict numeric validation has observable errors",
                    desired_strict_numeric_validation);
 

@@ -85,7 +85,8 @@ SET KEY=VALUE KEY=VALUE ...
 
 Important behavior:
 
-- A write should contain one complete `SET ...` command.
+- CONF input is line-framed: one newline-terminated line is one command.
+- One-shot clients that close after a final unterminated command are still accepted for compatibility.
 - Keys are parsed case-insensitively.
 - `MODE=` is applied before other radio parameters.
 - `GETRSSI=` is handled directly.
@@ -194,6 +195,7 @@ Refactored by Johannes Loose / 410733@gmail.com
 
 - Structurally refactored loradaemon_320_108, introduced an EPOLL-only event loop, and test-covered the cleanup without intended functional changes.
 - Bugfixes
+  - Fix CONFIG stream framing: fragmented commands are buffered and newline-separated commands are processed individually.
   - Fix client broadcast errors: failed writes close broken clients instead of keeping stale slots.
   - Fix client slot overflow: accepted clients without a free slot are closed instead of leaked.
   - Fix FSK SHAPING parsing: BT values now map to RadioLib constants instead of truncating to 0.

@@ -108,6 +108,7 @@ static void test_dispatch_ready_client(void)
 {
     int sv[2];
     int clients[2] = {0};
+    ConfigStreamBuffer streams[2];
     uint8_t buf[buf_SIZE];
     EventLoopSet set;
     EventLoopReadySet readfds;
@@ -116,6 +117,7 @@ static void test_dispatch_ready_client(void)
     volatile bool getrssi_active = false;
 
     memset(&g_apply_state, 0, sizeof(g_apply_state));
+    config_stream_init_all(streams, 2);
     memset(buf, 0, sizeof(buf));
 
     if (!make_socket_pair(sv)) {
@@ -125,7 +127,7 @@ static void test_dispatch_ready_client(void)
 
     clients[0] = sv[1];
 
-    const char *cmd = "SET GETRSSI=1";
+    const char *cmd = "SET GETRSSI=1\n";
     write(sv[0], cmd, strlen(cmd));
 
     event_loop_reset(&set);
@@ -134,6 +136,7 @@ static void test_dispatch_ready_client(void)
 
     ConfigDispatchContext<FakeRadio> ctx = {
         clients,
+        streams,
         &radio,
         "CONF TEST",
         "[TEST]",
@@ -163,6 +166,7 @@ static void test_dispatch_ready_client_epoll(void)
 {
     int sv[2];
     int clients[2] = {0};
+    ConfigStreamBuffer streams[2];
     uint8_t buf[buf_SIZE];
     EventLoopSet set;
     EventLoopReadySet readfds;
@@ -171,6 +175,7 @@ static void test_dispatch_ready_client_epoll(void)
     volatile bool getrssi_active = false;
 
     memset(&g_apply_state, 0, sizeof(g_apply_state));
+    config_stream_init_all(streams, 2);
     memset(buf, 0, sizeof(buf));
 
     if (!make_socket_pair(sv)) {
@@ -188,7 +193,7 @@ static void test_dispatch_ready_client_epoll(void)
         return;
     }
 
-    const char *cmd = "SET GETRSSI=1";
+    const char *cmd = "SET GETRSSI=1\n";
     write(sv[0], cmd, strlen(cmd));
 
     event_loop_add_fd(&set, sv[1]);
@@ -196,6 +201,7 @@ static void test_dispatch_ready_client_epoll(void)
 
     ConfigDispatchContext<FakeRadio> ctx = {
         clients,
+        streams,
         &radio,
         "CONF TEST",
         "[TEST]",
@@ -221,6 +227,7 @@ static void test_dispatch_ignores_not_ready_client(void)
 {
     int sv[2];
     int clients[2] = {0};
+    ConfigStreamBuffer streams[2];
     uint8_t buf[buf_SIZE];
     EventLoopSet set;
     EventLoopReadySet readfds;
@@ -229,6 +236,7 @@ static void test_dispatch_ignores_not_ready_client(void)
     volatile bool getrssi_active = false;
 
     memset(&g_apply_state, 0, sizeof(g_apply_state));
+    config_stream_init_all(streams, 2);
     memset(buf, 0, sizeof(buf));
 
     if (!make_socket_pair(sv)) {
@@ -244,6 +252,7 @@ static void test_dispatch_ignores_not_ready_client(void)
 
     ConfigDispatchContext<FakeRadio> ctx = {
         clients,
+        streams,
         &radio,
         "CONF TEST",
         NULL,
@@ -268,6 +277,7 @@ static void test_dispatch_closes_eof_client(void)
 {
     int sv[2];
     int clients[2] = {0};
+    ConfigStreamBuffer streams[2];
     uint8_t buf[buf_SIZE];
     EventLoopSet set;
     EventLoopReadySet readfds;
@@ -276,6 +286,7 @@ static void test_dispatch_closes_eof_client(void)
     volatile bool getrssi_active = false;
 
     memset(&g_apply_state, 0, sizeof(g_apply_state));
+    config_stream_init_all(streams, 2);
     memset(buf, 0, sizeof(buf));
 
     if (!make_socket_pair(sv)) {
@@ -293,6 +304,7 @@ static void test_dispatch_closes_eof_client(void)
 
     ConfigDispatchContext<FakeRadio> ctx = {
         clients,
+        streams,
         &radio,
         "CONF TEST",
         NULL,

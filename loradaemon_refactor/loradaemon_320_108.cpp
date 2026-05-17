@@ -146,6 +146,7 @@
 #include "client_set.h"
 #include "radio_channel.h"
 #include "config_dispatch.h"
+#include "config_stream.h"
 
 /* --- Global socket/client state ----------------------------------------- */
 // Globale Socket- und Client-Zustände
@@ -156,6 +157,9 @@ int client_data433[MAX_CLIENTS] = {0};
 int client_data868[MAX_CLIENTS] = {0};
 int client_conf433[MAX_CLIENTS] = {0};
 int client_conf868[MAX_CLIENTS] = {0};
+
+ConfigStreamBuffer config_stream_conf433[MAX_CLIENTS];
+ConfigStreamBuffer config_stream_conf868[MAX_CLIENTS];
 
 /* --- Channel IO state ---------------------------------------------------- */
 // Kanal-Zustand für Socket- und Clientverwaltung
@@ -732,6 +736,7 @@ static ConfigDispatchContext<SX1278> daemon_config_433_context(void)
 {
     ConfigDispatchContext<SX1278> ctx = {
         client_conf433,
+        config_stream_conf433,
         radio_433,
         "CONF 433",
         "[CONF433]",
@@ -748,6 +753,7 @@ static ConfigDispatchContext<RFM95> daemon_config_868_context(void)
 {
     ConfigDispatchContext<RFM95> ctx = {
         client_conf868,
+        config_stream_conf868,
         radio_868,
         "CONF 868",
         "[CONF868]",
@@ -779,6 +785,10 @@ static void daemon_loop_context_init(DaemonLoopContext *ctx)
     // DATA TX contexts.
     ctx->data_tx_433_ctx = daemon_data_tx_context("433", 433, &mode_433);
     ctx->data_tx_868_ctx = daemon_data_tx_context("868", 868, &mode_868);
+
+    // CONFIG stream buffers.
+    config_stream_init_all(config_stream_conf433, MAX_CLIENTS);
+    config_stream_init_all(config_stream_conf868, MAX_CLIENTS);
 
     // CONFIG contexts.
     ctx->config_433_ctx = daemon_config_433_context();

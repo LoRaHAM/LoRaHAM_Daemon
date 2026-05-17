@@ -66,6 +66,7 @@ tests=(
   "$TEST_DIR/test_daemon_lifecycle"
   "$TEST_DIR/test_unix_socket"
   "$TEST_DIR/test_config_parser"
+  "$TEST_DIR/test_config_stream_buffer"
   "$TEST_DIR/test_config_dispatch"
   "$TEST_DIR/test_interface_baseline"
   "$TEST_DIR/test_config_stream"
