@@ -235,12 +235,40 @@ build_one_data_tx_test() {
   echo "Built test:   $out"
 }
 
+build_one_config_dispatch_test() {
+  local src="$1"
+  local out="$2"
+
+  if [[ "${#radiolib_cflags[@]}" -eq 0 ]]; then
+    if ! find_radiolib; then
+      echo "ERROR: RadioLib not found for config dispatch test." >&2
+      exit 1
+    fi
+  fi
+
+  "$cxx" \
+    -std=c++11 \
+    -Wall \
+    -Wextra \
+    -O2 \
+    -I"$TEST_DIR" \
+    -I"$SCRIPT_DIR" \
+    "${radiolib_cflags[@]}" \
+    -o "$out" \
+    "$src" \
+    "$SCRIPT_DIR/client_set.cpp" \
+    "$SCRIPT_DIR/event_loop.cpp"
+
+  echo "Built test:   $out"
+}
+
 build_tests() {
   build_one_data_tx_test "$TEST_DIR/test_data_tx.cpp" "$TEST_DIR/test_data_tx"
   build_one_event_loop_test "$TEST_DIR/test_event_loop.cpp" "$TEST_DIR/test_event_loop"
   build_one_timing_test "$TEST_DIR/test_daemon_timing.cpp" "$TEST_DIR/test_daemon_timing"
   build_one_test "$TEST_DIR/test_rssi_multiclient.c" "$TEST_DIR/test_rssi_multiclient"
   build_one_cpp_test "$TEST_DIR/test_config_parser.cpp" "$TEST_DIR/test_config_parser"
+  build_one_config_dispatch_test "$TEST_DIR/test_config_dispatch.cpp" "$TEST_DIR/test_config_dispatch"
   build_one_test "$TEST_DIR/test_interface_baseline.c" "$TEST_DIR/test_interface_baseline"
   build_one_test "$TEST_DIR/test_config_stream.c" "$TEST_DIR/test_config_stream"
   build_one_test "$TEST_DIR/test_client_lifecycle.c" "$TEST_DIR/test_client_lifecycle"

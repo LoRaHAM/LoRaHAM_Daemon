@@ -63,6 +63,7 @@ tests=(
   "$TEST_DIR/test_event_loop"
   "$TEST_DIR/test_daemon_timing"
   "$TEST_DIR/test_config_parser"
+  "$TEST_DIR/test_config_dispatch"
   "$TEST_DIR/test_interface_baseline"
   "$TEST_DIR/test_config_stream"
   "$TEST_DIR/test_rssi_multiclient"
