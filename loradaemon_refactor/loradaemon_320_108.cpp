@@ -1141,19 +1141,6 @@ void parse_and_apply_config_generic(RadioT &radio, const char *tag, const char *
     printf("\n");
 }
 
-/* --- CONFIG apply boundary --- */
-
-template<typename RadioT>
-void config_apply_command(RadioT& radio,
-                                 const char *tag,
-                                 const char *cmd,
-                                 volatile RadioMode_t& mode,
-                                 volatile bool& getrssi_active)
-{
-    parse_and_apply_config_generic<RadioT>(radio, tag, cmd, mode, getrssi_active);
-}
-
-
 // --- Init LoRa ---
 void lora_init() {
     printf("[Init] Starte Dualband LoRa Receiver (433 + 868)\n");
