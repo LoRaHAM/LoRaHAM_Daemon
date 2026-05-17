@@ -194,6 +194,7 @@ The original project is licensed under GNU GPL v3 with additional conditions sta
 Refactored by Johannes Loose / 410733@gmail.com
 
 - Structurally refactored loradaemon_320_108, introduced an EPOLL-only event loop, and test-covered the cleanup without intended functional changes.
+- Hardening prep: add bounded client output queue helpers for the later non-blocking write path.
 - Bugfixes
   - Fix CONFIG stream framing: fragmented commands are buffered and newline-separated commands are processed individually.
   - Fix client broadcast errors: failed writes close broken clients instead of keeping stale slots.

@@ -262,6 +262,17 @@ build_one_data_tx_test() {
     "${event_loop_sources[@]}"
 }
 
+build_one_client_output_queue_test() {
+  local src="$1"
+  local out="$2"
+
+  build_one_cpp_sources \
+    "$out" \
+    "$src" \
+    "$SCRIPT_DIR/client_set.cpp" \
+    "${event_loop_sources[@]}"
+}
+
 build_one_rf_packet_test() {
   local src="$1"
   local out="$2"
@@ -294,6 +305,7 @@ build_one_config_dispatch_test() {
 
 build_tests() {
   build_one_data_tx_test "$TEST_DIR/test_data_tx.cpp" "$TEST_DIR/test_data_tx"
+  build_one_client_output_queue_test "$TEST_DIR/test_client_output_queue.cpp" "$TEST_DIR/test_client_output_queue"
   build_one_rf_packet_test "$TEST_DIR/test_rf_packet.cpp" "$TEST_DIR/test_rf_packet"
   build_one_event_loop_test "$TEST_DIR/test_event_loop.cpp" "$TEST_DIR/test_event_loop"
   build_one_timing_test "$TEST_DIR/test_daemon_timing.cpp" "$TEST_DIR/test_daemon_timing"
