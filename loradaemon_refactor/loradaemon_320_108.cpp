@@ -468,11 +468,13 @@ static void daemon_radio_shutdown_cleanup(void)
 // --- Callback für 868 ---
 void setFlag868(void) {
     radio_controller_868.received = true;
+    daemon_debug_ctx("RX868", "Flag gesetzt");
     radio_controller_led(&radio_controller_868, 1);
     //usleep(50000);
 }
 void setFlag433(void) {
     radio_controller_433.received = true;
+    daemon_debug_ctx("RX433", "Flag gesetzt");
     radio_controller_led(&radio_controller_433, 1);
     //usleep(50000);
 }
@@ -1215,6 +1217,25 @@ static void daemon_process_ready_sockets(ConfigDispatchContext<SX1278> *config_4
 }
 
 
+/* --- CAD/RSSI/RX log contexts ------------------------------------------- */
+template<typename RadioT>
+static const char *daemon_cad_log_ctx(RadioController<RadioT> *ctrl)
+{
+    return (ctrl && ctrl->band == RADIO_BAND_433) ? "CAD433" : "CAD868";
+}
+
+template<typename RadioT>
+static const char *daemon_rssi_log_ctx(RadioController<RadioT> *ctrl)
+{
+    return (ctrl && ctrl->band == RADIO_BAND_433) ? "RSSI433" : "RSSI868";
+}
+
+template<typename RadioT>
+static const char *daemon_rx_log_ctx(RadioController<RadioT> *ctrl)
+{
+    return (ctrl && ctrl->band == RADIO_BAND_433) ? "RX433" : "RX868";
+}
+
 /* --- CAD status ---------------------------------------------------------- */
 template<typename RadioT>
 static void daemon_process_cad_status(RadioController<RadioT> *ctrl,
@@ -1228,6 +1249,7 @@ static void daemon_process_cad_status(RadioController<RadioT> *ctrl,
 
     uint8_t modem = ctrl->radio->getModemStatus();
     bool hardware_active = (modem & 0x01) || (modem & 0x10);
+    const char *ctx = daemon_cad_log_ctx(ctrl);
 
     if (hardware_active) {
         if (ctrl->band == RADIO_BAND_433)
@@ -1236,12 +1258,14 @@ static void daemon_process_cad_status(RadioController<RadioT> *ctrl,
             setFlashFlag868();
 
         if (!ctrl->cad_active) {
+            daemon_debug_ctx(ctx, "Aktiv modem=0x%02X", modem);
             radio_controller_led(ctrl, 1);
             client_slot_broadcast_queued(io->conf_slots, MAX_CLIENTS, "CAD=1\n");
             ctrl->cad_active = true;
         }
     } else {
         if (ctrl->cad_active && !ctrl->received) {
+            daemon_debug_ctx(ctx, "Inaktiv modem=0x%02X", modem);
             radio_controller_led(ctrl, 0);
             client_slot_broadcast_queued(io->conf_slots, MAX_CLIENTS, "CAD=0\n");
             ctrl->cad_active = false;
@@ -1275,13 +1299,13 @@ static void daemon_process_cad_status(RadioController<RadioT> *ctrl,
  */
 template<typename RadioT>
 static void daemon_radio_controller_getrssi_autostop(RadioChannelIo *io,
-                                                     RadioController<RadioT> *ctrl,
-                                                     const char *tag)
+                                                     RadioController<RadioT> *ctrl)
 {
     if(!client_slot_has_clients(io->conf_slots, MAX_CLIENTS) && ctrl->getrssi_active) {
+        const char *ctx = daemon_rssi_log_ctx(ctrl);
+
         ctrl->getrssi_active = false;
-        printf("[%s] kein Client mehr verbunden -> GETRSSI auto-stop\n", tag);
-        fflush(stdout);
+        daemon_debug_ctx(ctx, "Auto-Stop: kein Client");
     }
 }
 
@@ -1289,26 +1313,36 @@ template<typename RadioT>
 static void daemon_process_rssi_stream_one(RadioController<RadioT> *ctrl,
                                            RadioChannelIo *io)
 {
-    if (!ctrl->getrssi_active || ctrl->tx_busy ||
-        !radio_controller_ready(ctrl) || !ctrl->mod)
+    const char *ctx = daemon_rssi_log_ctx(ctrl);
+
+    if (!ctrl->getrssi_active)
         return;
+
+    if (ctrl->tx_busy) {
+        daemon_debug_ctx(ctx, "TX aktiv, überspringe");
+        return;
+    }
+
+    if (!radio_controller_ready(ctrl) || !ctrl->mod) {
+        daemon_debug_ctx(ctx, "Radio nicht bereit");
+        return;
+    }
 
     float rssi = radio_channel_read_live_rssi(ctrl->mod.get(),
                                               ctrl->mode,
                                               ctrl->is_hf);
     char rssi_msg[32];
     snprintf(rssi_msg, sizeof(rssi_msg), "RSSI=%.2f\n", rssi);
+    daemon_debug_ctx(ctx, "Sende %.2f dBm", rssi);
     client_slot_broadcast_queued(io->conf_slots, MAX_CLIENTS, rssi_msg);
 }
 
 static void daemon_process_rssi_stream(DaemonDeadlineTimer *rssi_timer)
 {
     daemon_radio_controller_getrssi_autostop(&channel_433,
-                                             &radio_controller_433,
-                                             "CONF 433");
+                                             &radio_controller_433);
     daemon_radio_controller_getrssi_autostop(&channel_868,
-                                             &radio_controller_868,
-                                             "CONF 868");
+                                             &radio_controller_868);
 
     // RSSI-Takt ist zeitbasiert.
     if (daemon_deadline_timer_due(rssi_timer, daemon_now_ms())) {
@@ -1337,6 +1371,7 @@ static void daemon_discard_rx_during_tx(RadioController<RadioT> *ctrl)
 {
     ctrl->received = false;
     ctrl->radio->clearIrq(0xFFFFFFFF);
+    daemon_debug_ctx(daemon_rx_log_ctx(ctrl), "RX während TX verworfen");
     printf("[%s] RX während TX - verwerfe Paket\n",
            radio_controller_tag(ctrl));
 }
@@ -1431,6 +1466,7 @@ static void daemon_broadcast_rx_data(RadioChannelIo *io, uint8_t *buf, int len)
 template<typename RadioT>
 static void daemon_restart_receive_after_empty_rx(RadioController<RadioT> *ctrl)
 {
+    daemon_debug_ctx(daemon_rx_log_ctx(ctrl), "Leer-IRQ, RX neu starten");
     ctrl->radio->clearIrq(0xFFFFFFFF);
     ctrl->radio->startReceive();
 }
@@ -1445,6 +1481,7 @@ static void daemon_finish_rx_packet(RadioController<RadioT> *ctrl,
 
     radio_controller_led(ctrl, 0);
     ctrl->radio->startReceive();
+    daemon_debug_ctx(daemon_rx_log_ctx(ctrl), "RX bereit");
 }
 
 template<typename RadioT>
@@ -1459,21 +1496,28 @@ static void daemon_prepare_rx_packet(RadioController<RadioT> *ctrl,
     // Grund: SX127x RegIrqFlags2 Bit3 = FifoOverrun -> schreibt man 0xFF rein,
     // wird Bit3 gesetzt und der FIFO wird gelöscht (laut Datasheet).
     // Im LoRa-Modus trifft das nicht zu (anderes Register).
-    if (ctrl->mode == RADIO_MODE_LORA)
+    if (ctrl->mode == RADIO_MODE_LORA) {
+        daemon_debug_ctx(daemon_rx_log_ctx(ctrl), "IRQ vor Read löschen");
         ctrl->radio->clearIrq(0xFFFFFFFF);
+    }
 }
 
 template<typename RadioT>
 static int daemon_rx_packet_length(RadioController<RadioT> *ctrl)
 {
-    return ctrl->radio->getPacketLength();
+    int len = ctrl->radio->getPacketLength();
+
+    daemon_debug_ctx(daemon_rx_log_ctx(ctrl), "Länge %d", len);
+    return len;
 }
 
 template<typename RadioT>
 static void daemon_clear_irq_after_rx_read(RadioController<RadioT> *ctrl)
 {
-    if (ctrl->mode == RADIO_MODE_FSK)
+    if (ctrl->mode == RADIO_MODE_FSK) {
+        daemon_debug_ctx(daemon_rx_log_ctx(ctrl), "IRQ nach Read löschen");
         ctrl->radio->clearIrq(0xFFFFFFFF);
+    }
 }
 
 template<typename RadioT>
@@ -1511,6 +1555,8 @@ template<typename RadioT>
 static void daemon_record_rx_drop(RadioController<RadioT> *ctrl, int16_t state)
 {
     ctrl->rx_drops++;
+    daemon_debug_ctx(daemon_rx_log_ctx(ctrl), "Drop %lu Status %d",
+                     ctrl->rx_drops, state);
 
     if (daemon_should_log_rx_drop(ctrl->rx_drops)) {
         printf("[%d] RX read error: %d, packet dropped, drops=%lu\n",
@@ -1557,6 +1603,7 @@ static void daemon_process_radio_band(RadioController<RadioT> *ctrl,
         return;
     }
 
+    daemon_debug_ctx(daemon_rx_log_ctx(ctrl), "readData()");
     int16_t read_state = daemon_read_rx_data(ctrl, rx_buf, sizeof(rx_buf)); // 5ms Timeout
 
     // Im FSK-Modus: clearIrq NACH readData() - FIFO ist jetzt geleert
@@ -1567,8 +1614,10 @@ static void daemon_process_radio_band(RadioController<RadioT> *ctrl,
         return;
     }
 
+    daemon_debug_ctx(daemon_rx_log_ctx(ctrl), "Read OK");
     daemon_print_rx_packet(ctrl, rx_buf, len);
     daemon_broadcast_rx_data(io, rx_buf, len);
+    daemon_debug_ctx(daemon_rx_log_ctx(ctrl), "Broadcast %d Byte", len);
 
     daemon_finish_rx_packet(ctrl, rx_buf, sizeof(rx_buf));
 }

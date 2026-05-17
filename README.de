@@ -1,6 +1,7 @@
 # LoRaHAM_Daemon
 
 ## Changelog
+- Funktion: RX/CAD/RSSI-Pfade um kurze Kontext-Debug-Logs ergänzt.
 - Funktion: DATA-TX-Pfad um kurze Kontext-Debug-Logs ergänzt.
 - Funktion: CONFIG-Pfad um kurze Kontext-Debug-Logs ergänzt.
 - Funktion: Socket- und Client-Pfade um kurze Kontext-Debug-Logs ergänzt.
