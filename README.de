@@ -1,6 +1,7 @@
 # LoRaHAM_Daemon
 
 ## Changelog
+- Refactor: LED-Schaltung erfolgt in Radio-Flows über den RadioController.
 - Refactor: RadioController nutzt std::unique_ptr für RadioLib-Objektbesitz.
 - Refactor: RadioController erhält expliziten Shutdown für RadioLib-Objekte.
 - Refactor: DATA-TX-Kontext hält direkt den RadioController statt einer TX-View.

@@ -275,6 +275,24 @@ void LED_868(int state) {
         lgGpioWrite(chip, PIN_868, state ? 1 : 0);
 }
 
+template<typename RadioT>
+static void radio_controller_led(RadioController<RadioT> *ctrl, int state)
+{
+    if (!ctrl || chip < 0)
+        return;
+
+    lgGpioWrite(chip, ctrl->led_pin, state ? 1 : 0);
+}
+
+template<typename RadioT>
+static void radio_controller_flash_led(RadioController<RadioT> *ctrl)
+{
+    radio_controller_led(ctrl, 1);
+    usleep(15000);
+    radio_controller_led(ctrl, 0);
+    usleep(15000);
+}
+
 
 /* --- RX drop statistics -------------------------------------------------- */
 // Rate-limited counters for invalid RadioLib RX reads.
@@ -333,28 +351,20 @@ static void daemon_radio_shutdown_cleanup(void)
 // --- Callback für 868 ---
 void setFlag868(void) {
     radio_controller_868.received = true;
-    LED_868(1);
+    radio_controller_led(&radio_controller_868, 1);
     //usleep(50000);
 }
 void setFlag433(void) {
     radio_controller_433.received = true;
-    LED_433(1);
+    radio_controller_led(&radio_controller_433, 1);
     //usleep(50000);
 }
 
 void setFlashFlag868(void) {
-
-    LED_868(1);
-    usleep(15000);
-    LED_868(0);
-    usleep(15000);
+    radio_controller_flash_led(&radio_controller_868);
 }
 void setFlashFlag433(void) {
-
-    LED_433(1);
-    usleep(15000);
-    LED_433(0);
-    usleep(15000);
+    radio_controller_flash_led(&radio_controller_433);
 }
 
 // --- LoRa senden (DEBUG + FIX) ---
@@ -576,7 +586,7 @@ void lora_init() {
         return;
     }
 
-    LED_433(1);
+    radio_controller_led(&radio_controller_433, 1);
 
     radio_controller_433.hal.reset(new PiHal(0));
     radio_controller_433.mod.reset(new Module(radio_controller_433.hal.get(), 8, 25, 5, 24));
@@ -747,14 +757,6 @@ static int data_tx_modem_status(DataTxDaemonContext<RadioT> *tx)
     return ctrl->radio->getModemStatus();
 }
 
-static void data_tx_led(int band, int state)
-{
-    if (band == 433)
-        LED_433(state);
-    else
-        LED_868(state);
-}
-
 template<typename RadioT>
 static int data_tx_wait_channel_free(DataTxDaemonContext<RadioT> *tx)
 {
@@ -799,9 +801,9 @@ static int send_data_chunk(uint8_t *chunk, size_t len, size_t offset, void *ctx)
 
     printf("  -> Sende Chunk: %zu Bytes (Offset: %zu)\n", len, offset);
 
-    data_tx_led(band, 1);
+    radio_controller_led(ctrl, 1);
     TxResult result = lora_send(chunk, len, band);
-    data_tx_led(band, 0);
+    radio_controller_led(ctrl, 0);
 
     if (!tx_result_is_ok(result)) {
         printf("[%s] DATA-TX abgebrochen: %s\n", tag,
@@ -948,13 +950,13 @@ static void daemon_process_cad_status(RadioController<RadioT> *ctrl,
             setFlashFlag868();
 
         if (!ctrl->cad_active) {
-            data_tx_led(radio_controller_band_number(ctrl), 1);
+            radio_controller_led(ctrl, 1);
             client_slot_broadcast_queued(io->conf_slots, MAX_CLIENTS, "CAD=1\n");
             ctrl->cad_active = true;
         }
     } else {
         if (ctrl->cad_active && !ctrl->received) {
-            data_tx_led(radio_controller_band_number(ctrl), 0);
+            radio_controller_led(ctrl, 0);
             client_slot_broadcast_queued(io->conf_slots, MAX_CLIENTS, "CAD=0\n");
             ctrl->cad_active = false;
         }
@@ -1155,7 +1157,7 @@ static void daemon_finish_rx_packet(RadioController<RadioT> *ctrl,
     if (ctrl->band == RADIO_BAND_868)
         memset(buf, 0, buf_len);
 
-    data_tx_led(radio_controller_band_number(ctrl), 0);
+    radio_controller_led(ctrl, 0);
     ctrl->radio->startReceive();
 }
 
