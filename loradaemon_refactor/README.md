@@ -196,29 +196,24 @@ The original project is licensed under GNU GPL v3 with additional conditions sta
 ## Changelog
 Refactored by Johannes Loose / 410733@gmail.com
 
-- Structurally refactored loradaemon_320_108, introduced an EPOLL-only event loop, and test-covered the cleanup without intended functional changes.
-- Hardening prep: add bounded client output queue helpers for the later non-blocking write path.
-- Hardening: accepted client sockets are non-blocking; EAGAIN/EWOULDBLOCK no longer closes clients.
-- Hardening: daemon broadcasts now use bounded per-client output queues with non-blocking immediate flush.
-- Hardening: queued client output is now flushed from EPOLLOUT/write-ready events.
-- Cleanup: removed legacy blocking client broadcast helpers; runtime/test paths use queued output only.
-- QA: final non-blocking socket audit keeps daemon broadcast paths queued-only.
-- Hardening prep: add strict CONFIG value parser helpers and tests.
-- Hardening: CONFIG apply uses strict value parsers instead of partial atoi/atof parsing.
-- Hardening: CONFIG value policy is separated and unit-tested.
-- Documentation: CONFIG parameter table now reflects strict accepted value ranges.
-- Hardening prep: TX send path now returns TxResult and DATA-TX aborts on send failures.
-- Hardening prep: radio init now records per-band health and guards failed hardware paths.
-- Hardening prep: CONFIG commands are validated as a whole before side-effecting apply starts.
-- Hardening: malformed CONFIG tokens are now reported and rejected before apply.
-- Tests: CONFIG transactional apply now has direct side-effect coverage.
-- QA: add a static check that production paths do not call legacy blocking broadcast wrappers.
-- QA: add slow-client output tests for non-blocking queued broadcasts.
-- Hardening: read-side client disconnects now reset their queued output immediately.
-- Bugfixes
+- Refactor / Hardening
+  - Event loop: moved polling/socket loop toward event-backend structure with test coverage.
+  - Socket handling: hardened client slots, nonblocking I/O, queued broadcasts, and slow-client behavior.
+  - RadioController/OOP: replaced radio globals and centralized 433/868 runtime state in `RadioController`.
+  - Radio lifecycle: moved RadioLib objects to `std::unique_ptr` ownership with explicit shutdown.
+  - TX path: routed DATA-TX, CAD guard, band/mode/health, and send flow through `RadioController`.
+  - RX path: structured RX packet flow, IRQ/FIFO handling, and broadcast path through `RadioController`.
+  - CAD/RSSI: routed polling and RSSI streaming through controller state instead of legacy mirrors.
+  - CONFIG path: CONFIG dispatch now uses `RadioController` as runtime/hardware source.
+  - LED path: radio-flow LED handling now goes through `RadioController`.
+  - Logging module: extracted logger implementation into `daemon_log.h/.cpp`.
+  - Test hardening: expanded structural guards and integration/regression coverage in `run_tests.sh`.
+- Bugfix
   - Fix CONFIG stream framing: fragmented commands are buffered and newline-separated commands are processed individually.
   - Fix client broadcast errors: failed writes close broken clients instead of keeping stale slots.
   - Fix client slot overflow: accepted clients without a free slot are closed instead of leaked.
   - Fix FSK SHAPING parsing: BT values now map to RadioLib constants instead of truncating to 0.
   - Fix TX bounds checks: invalid or oversized packets are rejected before copy/transmit.
   - Fix RX error forwarding: RadioLib CRC/header/read errors are dropped and counted.
+- Feature
+  - Debug logging
