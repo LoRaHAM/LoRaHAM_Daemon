@@ -732,6 +732,31 @@ static void daemon_process_ready_sockets(ConfigDispatchContext<SX1278> *config_4
     process_config_dispatch(config_433_ctx, config_868_ctx, readfds, buf);
 }
 
+static void daemon_process_rssi_stream(DaemonDeadlineTimer *rssi_timer)
+{
+    radio_channel_getrssi_autostop(&channel_433, &runtime_433, "CONF 433");
+    radio_channel_getrssi_autostop(&channel_868, &runtime_868, "CONF 868");
+
+    // Functional change: RSSI cadence is now time-based.
+    if (daemon_deadline_timer_due(rssi_timer, daemon_now_ms())) {
+        // 433: nur lesen wenn aktiv und kein TX laeuft
+        if (getrssi_433_active && !txBusy433) {
+            float rssi433 = radio_channel_read_live_rssi(mod_433, mode_433, false);
+            char rssi_msg[32];
+            snprintf(rssi_msg, sizeof(rssi_msg), "RSSI=%.2f\n", rssi433);
+            client_set_broadcast(client_conf433, MAX_CLIENTS, rssi_msg);
+        }
+
+        // 868: nur lesen wenn aktiv und kein TX laeuft
+        if (getrssi_868_active && !txBusy868) {
+            float rssi868 = radio_channel_read_live_rssi(mod_868, mode_868, true);
+            char rssi_msg[32];
+            snprintf(rssi_msg, sizeof(rssi_msg), "RSSI=%.2f\n", rssi868);
+            client_set_broadcast(client_conf868, MAX_CLIENTS, rssi_msg);
+        }
+    }
+}
+
 // --- Unix socket setup moved to unix_socket.cpp ---
 
 int main(int argc, char *argv[]) {
@@ -1163,31 +1188,7 @@ int main(int argc, char *argv[]) {
                         // SET GETRSSI=1.
                         // ============================================================
 
-                        // --- Auto-Stop: Pruefe ob noch ein Conf-Client verbunden ist ---
-                        {
-                            radio_channel_getrssi_autostop(&channel_433, &runtime_433, "CONF 433");
-                            radio_channel_getrssi_autostop(&channel_868, &runtime_868, "CONF 868");
-                        }
-
-                        // Functional change: RSSI cadence is now time-based.
-                        if(daemon_deadline_timer_due(&rssi_timer, daemon_now_ms())) {
-
-                            // 433: nur lesen wenn aktiv und kein TX laeuft
-                            if(getrssi_433_active && !txBusy433) {
-                                float rssi433 = radio_channel_read_live_rssi(mod_433, mode_433, false);
-                                char rssi_msg[32];
-                                snprintf(rssi_msg, sizeof(rssi_msg), "RSSI=%.2f\n", rssi433);
-                                client_set_broadcast(client_conf433, MAX_CLIENTS, rssi_msg);
-                            }
-
-                            // 868: nur lesen wenn aktiv und kein TX laeuft
-                            if(getrssi_868_active && !txBusy868) {
-                                float rssi868 = radio_channel_read_live_rssi(mod_868, mode_868, true);
-                                char rssi_msg[32];
-                                snprintf(rssi_msg, sizeof(rssi_msg), "RSSI=%.2f\n", rssi868);
-                                client_set_broadcast(client_conf868, MAX_CLIENTS, rssi_msg);
-                            }
-                        }
+                        daemon_process_rssi_stream(&rssi_timer);
 
     } // while stop not requested
 
