@@ -25,3 +25,4 @@
 /loradaemon_refactor/tests/test_tx_result
 /loradaemon_refactor/tests/test_radio_health
 /loradaemon_refactor/tests/test_config_validate
+/loradaemon_refactor/tests/test_config_apply_transactional

@@ -29,6 +29,7 @@ require "$PARSER" "malformed_tokens" "parser reports malformed tokens"
 require "$VALIDATE" "cmd.malformed_tokens" "validation rejects malformed tokens"
 require "$REFACTOR_DIR/build.sh" '"$SCRIPT_DIR/config_validate.cpp"' "config_validate in build"
 require "$REFACTOR_DIR/run_tests.sh" '"$TEST_DIR/test_config_validate"' "config_validate test in run_tests"
+require "$REFACTOR_DIR/run_tests.sh" '"$TEST_DIR/test_config_apply_transactional"' "config apply transactional test in run_tests"
 
 validation_line=$(grep -n 'config_validate_command(parsed, mode_flag, &validation)' "$APPLY" | head -n1 | cut -d: -f1 || true)
 getrssi_line=$(grep -n 'if(key == "GETRSSI")' "$APPLY" | head -n1 | cut -d: -f1 || true)

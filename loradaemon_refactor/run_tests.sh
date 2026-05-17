@@ -81,6 +81,7 @@ tests=(
   "$TEST_DIR/test_config_value"
   "$TEST_DIR/test_config_policy"
   "$TEST_DIR/test_config_validate"
+  "$TEST_DIR/test_config_apply_transactional"
   "$TEST_DIR/check_readme_config_policy.sh"
   "$TEST_DIR/check_config_apply_strict_parsing.sh"
   "$TEST_DIR/check_transactional_config_apply.sh"
