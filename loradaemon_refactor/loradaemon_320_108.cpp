@@ -250,44 +250,6 @@ void LED_868(int state) {
 }
 
 
-// --- Hilfsfunktionen für Frames ---
-
-// --- Neue Hilfsfunktion für Rohdaten ---
-ssize_t recv_raw_nonblocking(int fd, uint8_t *buf, size_t max_size) {
-    // Liest alles, was aktuell im Socket-Puffer bereitsteht
-    // Da der Socket im non-blocking Modus ist (durch select),
-    // liefert read() sofort zurück, was da ist.
-    ssize_t n = read(fd, buf, max_size);
-    return n;
-}
-
-// Wenn du zurück an den Client sendest, kannst du entscheiden:
-// Willst du dem Client die Länge mitschicken oder nur die Rohdaten?
-ssize_t send_raw(int fd, const uint8_t *buf, uint8_t len) {
-    // Nur die Daten senden, ohne Längen-Byte vorab
-    return write(fd, buf, len);
-}
-
-/*
- * ssize_t recv_frame_nonblocking(int fd, uint8_t *buf, uint8_t *len) {
- *    // Non-blocking read mit maximal 1 Byte sofort
- *    ssize_t n = read(fd, len, 1);
- *    if (n <= 0) return n;
- *    ssize_t total = 0;
- *    while (total < *len) {
- *        n = read(fd, buf + total, *len - total);
- *        if (n <= 0) break; // Non-blocking -> nicht warten
- *        total += n;
- *    }
- *    return total;
- * }
- */
-
-ssize_t send_frame(int fd,const uint8_t *buf,uint8_t len){
-    if(write(fd,&len,1)!=1) return -1;
-    return write(fd,buf,len);
-}
-
 // --- CAD broadcast helper moved to client_set.cpp ---
 
 
