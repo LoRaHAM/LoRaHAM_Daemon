@@ -179,8 +179,8 @@ This software is experimental and used at your own risk. Use only for amateur ra
 
 ## Credits and license
 
-Copyright (c) 2020-2026 Alexander Walter / LoRaHAM.
-modified by Johannes Loose / 410733@gmail.com
+Copyright (c) 2020-2026 Alexander Walter / LoRaHAM. 
+Refactored by Johannes Loose / 410733@gmail.com
 
 The original project is licensed under GNU GPL v3 with additional conditions stated by the author:
 
