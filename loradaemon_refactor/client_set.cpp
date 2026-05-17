@@ -330,40 +330,7 @@ void client_set_add_to_event_loop_with_output(int *clients,
     }
 }
 
-/* --- Client writes ------------------------------------------------------- */
-static ssize_t client_set_send_all(int fd, const uint8_t *buf, size_t len)
-{
-    size_t sent = 0;
-
-    if (len == 0)
-        return 0;
-
-    if (!buf) {
-        errno = EINVAL;
-        return -1;
-    }
-
-    while (sent < len) {
-        ssize_t n = send(fd, buf + sent, len - sent, MSG_NOSIGNAL);
-
-        if (n < 0) {
-            if (errno == EINTR)
-                continue;
-
-            return -1;
-        }
-
-        if (n == 0) {
-            errno = EPIPE;
-            return -1;
-        }
-
-        sent += (size_t)n;
-    }
-
-    return (ssize_t)sent;
-}
-
+/* --- Client queued writes ------------------------------------------------ */
 void client_set_flush_output_slot(int *clients, ClientOutputQueue *queues, int index)
 {
     if (!queues)
@@ -401,40 +368,7 @@ void client_set_flush_ready_outputs(int *clients,
     }
 }
 
-/* --- Client broadcasts --------------------------------------------------- */
-// Statusmeldungen an alle verbundenen Clients senden.
-
-void client_set_broadcast(int *clients, int max_clients, const char *msg)
-{
-    size_t len;
-
-    if (!msg)
-        return;
-
-    len = strlen(msg);
-
-    for (int i = 0; i < max_clients; i++) {
-        if (clients[i] > 0 &&
-            client_set_send_all(clients[i], (const uint8_t *)msg, len) < 0)
-            client_set_close_slot(clients, i);
-    }
-}
-
-
-// Rohdaten an alle verbundenen Clients senden.
-void client_set_broadcast_bytes(int *clients, int max_clients, const uint8_t *buf, size_t len)
-{
-    if (len > 0 && !buf)
-        return;
-
-    for (int i = 0; i < max_clients; i++) {
-        if (clients[i] > 0 &&
-            client_set_send_all(clients[i], buf, len) < 0)
-            client_set_close_slot(clients, i);
-    }
-}
-
-
+/* --- Client queued broadcasts ------------------------------------------- */
 void client_set_broadcast_bytes_queued(int *clients, ClientOutputQueue *queues, int max_clients, const uint8_t *buf, size_t len)
 {
     if (len == 0)

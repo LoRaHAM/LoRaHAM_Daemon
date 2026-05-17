@@ -57,6 +57,7 @@ if pgrep -x loraham_daemon >/dev/null; then
 fi
 
 "$SCRIPT_DIR/build.sh"
+"$TEST_DIR/check_no_legacy_blocking_broadcasts.sh"
 
 tests=(
   "$TEST_DIR/test_data_tx"

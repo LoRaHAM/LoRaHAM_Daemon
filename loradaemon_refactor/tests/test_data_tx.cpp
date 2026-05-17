@@ -172,52 +172,6 @@ static void test_client_set_close_all(void)
 }
 
 
-static void test_client_set_broadcast_bytes_delivers_payload(void)
-{
-    int sv[2];
-    int clients[3] = {0};
-    const uint8_t payload[] = {0x00, 0x41, 0xFF};
-    uint8_t got[sizeof(payload)] = {0};
-
-    if (socketpair(AF_UNIX, SOCK_STREAM, 0, sv) != 0) {
-        g_fail++;
-        printf("[FAIL] broadcast bytes socketpair setup\n");
-        return;
-    }
-
-    clients[1] = sv[1];
-    client_set_broadcast_bytes(clients, 3, payload, sizeof(payload));
-
-    expect_int("broadcast bytes slot kept", clients[1] > 0, 1);
-    expect_int("broadcast bytes read size",
-               (int)read(sv[0], got, sizeof(got)),
-               (int)sizeof(payload));
-    expect_int("broadcast bytes payload",
-               memcmp(got, payload, sizeof(payload)) == 0,
-               1);
-
-    close(sv[0]);
-    client_set_close_slot(clients, 1);
-}
-
-static void test_client_set_broadcast_closes_broken_client(void)
-{
-    int sv[2];
-    int clients[2] = {0};
-
-    if (socketpair(AF_UNIX, SOCK_STREAM, 0, sv) != 0) {
-        g_fail++;
-        printf("[FAIL] broken broadcast socketpair setup\n");
-        return;
-    }
-
-    clients[0] = sv[1];
-    close(sv[0]);
-
-    client_set_broadcast(clients, 2, "hello");
-
-    expect_int("broken broadcast slot closed", clients[0], 0);
-}
 
 /* --- DATA TX dispatch via event loop --- */
 
@@ -298,8 +252,6 @@ int main(int argc, char **argv)
     test_chunk_iterator();
     test_chunk_iterator_stop();
     test_client_set_close_all();
-    test_client_set_broadcast_bytes_delivers_payload();
-    test_client_set_broadcast_closes_broken_client();
     test_process_clients_epoll();
 
     printf("\nSummary: ok=%d fail=%d\n", g_ok, g_fail);

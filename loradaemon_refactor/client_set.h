@@ -43,10 +43,8 @@ int client_set_slot_ready(int *clients, int index, const EventLoopReadySet *read
 int client_set_output_ready(int *clients, ClientOutputQueue *queues, int index, const EventLoopReadySet *ready);
 int client_set_has_clients(int *clients, int max_clients);
 
-/* --- Client text broadcast --- */
+/* --- Client queued broadcast --- */
 
-void client_set_broadcast(int *clients, int max_clients, const char *msg);
-void client_set_broadcast_bytes(int *clients, int max_clients, const uint8_t *buf, size_t len);
 void client_set_flush_output_slot(int *clients, ClientOutputQueue *queues, int index);
 void client_set_flush_outputs(int *clients, ClientOutputQueue *queues, int max_clients);
 void client_set_flush_ready_outputs(int *clients, ClientOutputQueue *queues, int max_clients, const EventLoopReadySet *ready);
