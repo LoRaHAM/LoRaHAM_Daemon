@@ -335,8 +335,6 @@ void setFlashFlag433(void) {
     usleep(15000);
 }
 
-// --- LoRa senden ---
-
 // --- LoRa senden (DEBUG + FIX) ---
 void lora_send(uint8_t *buf, size_t len, int band) {
     // WICHTIG: Buffer kopieren, damit er nicht überschrieben wird!
@@ -459,63 +457,6 @@ void lora_send(uint8_t *buf, size_t len, int band) {
     }
 }
 
-
-/*
- * void lora_send(uint8_t *buf, size_t len, int band) {
- *    printf("[SEND %d] %d Bytes: ", band, (int)len);
- *    for(size_t i = 0; i < std::min(len, (size_t)20); i++) printf("%c", buf[i] >= 32 && buf[i] <= 126 ? buf[i] : '.');
- *    printf("...\n");
- *
- *    if (band == 433) {
- *        // Buffer leeren vor Senden
- *        radio_433->clearIrq(0xFFFFFFFF);  // ← FIX: clearIrq()
- *        radio_433->standby();
- *
- *        int state = radio_433->transmit(buf, len);
- *        if (state != RADIOLIB_ERR_NONE) {
- *            printf("[433] TRANSMIT FEHLER: %d\n", state);
- *        } else {
- *            printf("[433] TRANSMIT OK\n");
- *        }
- *
- *        // WICHTIG: Kurz warten bis TX fertig
- *        usleep(100000);  // 100ms
- *
- *        // Zurück zu RX
- *        radio_433->clearIrq(0xFFFFFFFF);  // ← FIX: clearIrq()
- *        radio_433->startReceive();
- *
- *    } else if (band == 868) {
- *        radio_868->clearIrq(0xFFFFFFFF);  // ← FIX: clearIrq()
- *        radio_868->standby();
- *
- *        int state = radio_868->transmit(buf, len);
- *        if (state != RADIOLIB_ERR_NONE) {
- *            printf("[868] TRANSMIT FEHLER: %d\n", state);
- *        } else {
- *            printf("[868] TRANSMIT OK\n");
- *        }
- *
- *        usleep(100000);
- *        radio_868->clearIrq(0xFFFFFFFF);  // ← FIX: clearIrq()
- *        radio_868->startReceive();
- *    }
- * }
- */
-
-/*
- * void lora_send(uint8_t *buf, size_t len, int band) {
- *    if (band == 433) {
- *        if (radio_433->transmit(buf, len) != RADIOLIB_ERR_NONE){
- *            printf("[433] Fehler beim Senden!\n");}else{
- *            radio_433->startReceive();}
- *    } else if (band == 868) {
- *        if (radio_868->transmit(buf, len) != RADIOLIB_ERR_NONE){
- *            printf("[868] Fehler beim Senden!\n");}else{
- *            radio_868->startReceive();}
- *    }
- * }
- */
 
 /* --- CONFIG apply: see config_apply.cpp --- */
 
@@ -662,7 +603,6 @@ static void daemon_radio_io_init(void)
     lora_init();
 }
 
-/* --- Data client TX handling --- */
 /* --- DATA TX structure: context, CAD guard and send callback -------------- */
 
 typedef struct {
@@ -728,7 +668,6 @@ static int send_data_chunk(uint8_t *chunk, size_t len, size_t offset, void *ctx)
     return 0;
 }
 
-/* --- CONFIG dispatch wiring --- */
 /* --- Context factories: DATA TX and CONFIG dispatch ----------------------- */
 
 static DataTxDaemonContext daemon_data_tx_context(const char *tag,

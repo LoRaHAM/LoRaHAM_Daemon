@@ -102,7 +102,7 @@ static void test_epoll_wait_timeout(void)
     event_loop_epoll_close(&set);
 }
 
-/* --- backend-neutral epoll wrapper --- */
+/* --- event-loop wrapper --- */
 
 static void test_backend_names(void)
 {
@@ -201,7 +201,7 @@ static void test_backend_close_epoll_clears_state(void)
     close(fds[1]);
 }
 
-static void test_backend_neutral_aliases(void)
+static void test_event_loop_wrapper_aliases(void)
 {
     EventLoopSet set;
     int fds[2];
@@ -236,7 +236,7 @@ static void test_backend_neutral_aliases(void)
     close(fds[1]);
 }
 
-static void test_backend_neutral_wait_readable_pipe(void)
+static void test_event_loop_wrapper_wait_readable_pipe(void)
 {
     EventLoopSet set;
     EventLoopReadySet ready;
@@ -298,8 +298,8 @@ int main(int argc, char **argv)
     test_event_loop_init();
     test_backend_reset_preserves_epoll();
     test_backend_close_epoll_clears_state();
-    test_backend_neutral_aliases();
-    test_backend_neutral_wait_readable_pipe();
+    test_event_loop_wrapper_aliases();
+    test_event_loop_wrapper_wait_readable_pipe();
 
     printf("\nSummary: ok=%d fail=%d\n", g_ok, g_fail);
 
