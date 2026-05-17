@@ -1140,7 +1140,7 @@ void parse_and_apply_config_generic(RadioT &radio, const char *tag, const char *
     printf("\n");
 }
 
-
+#include "config_dispatch.h"
 
 // --- Init LoRa ---
 void lora_init() {
@@ -1310,57 +1310,6 @@ static int send_data_chunk(uint8_t *chunk, size_t len, size_t offset, void *ctx)
     return 0;
 }
 
-/* --- Config client handling --- */
-
-template<typename RadioT>
-static void process_config_client(int *clients,
-                                  int index,
-                                  const fd_set *readfds,
-                                  uint8_t *buf,
-                                  RadioT& radio,
-                                  const char *tag,
-                                  const char *prefix,
-                                  volatile RadioMode_t& mode,
-                                  volatile bool& getrssi_active,
-                                  void (*rx_callback)(void))
-{
-    if(!client_set_slot_ready(clients, index, readfds))
-        return;
-
-    ssize_t n = client_set_read_slot(clients, index, buf, buf_SIZE-1);
-    if(n <= 0)
-        return;
-
-    buf[n] = '\0';
-
-    if(prefix)
-        printf("%s", prefix);
-
-    parse_and_apply_config_generic<RadioT>(radio, tag, (char*)buf, mode, getrssi_active);
-
-    // beginFSK()/begin() loescht den IRQ-Callback.
-    radio.setPacketReceivedAction(rx_callback);
-    radio.startReceive();
-}
-
-template<typename RadioT>
-static void process_config_clients(int *clients,
-                                   const fd_set *readfds,
-                                   uint8_t *buf,
-                                   RadioT& radio,
-                                   const char *tag,
-                                   const char *prefix,
-                                   volatile RadioMode_t& mode,
-                                   volatile bool& getrssi_active,
-                                   void (*rx_callback)(void))
-{
-    for(int i=0;i<MAX_CLIENTS;i++){
-        process_config_client<RadioT>(clients, i, readfds, buf,
-                                      radio, tag, prefix,
-                                      mode, getrssi_active, rx_callback);
-    }
-}
-
 // --- Unix socket setup moved to unix_socket.cpp ---
 
 int main(int argc, char *argv[]) {
@@ -1486,12 +1435,12 @@ int main(int argc, char *argv[]) {
                                                 &readfds, send_data_chunk, &data_tx_868_ctx);
 
                         // --- CONFIG Clients bearbeiten ---
-                        process_config_clients<SX1278>(client_conf433, &readfds, buf,
-                                                       *radio_433, "CONF 433", "[CONF433]",
-                                                       mode_433, getrssi_433_active, setFlag433);
-                        process_config_clients<RFM95>(client_conf868, &readfds, buf,
-                                                      *radio_868, "CONF 868", NULL,
-                                                      mode_868, getrssi_868_active, setFlag868);
+                        config_dispatch_clients<SX1278>(client_conf433, MAX_CLIENTS, &readfds, buf, buf_SIZE,
+                                                        *radio_433, "CONF 433", "[CONF433]",
+                                                        mode_433, getrssi_433_active, setFlag433);
+                        config_dispatch_clients<RFM95>(client_conf868, MAX_CLIENTS, &readfds, buf, buf_SIZE,
+                                                       *radio_868, "CONF 868", NULL,
+                                                       mode_868, getrssi_868_active, setFlag868);
 
 
 
