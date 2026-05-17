@@ -829,13 +829,16 @@ static void daemon_process_rssi_stream(DaemonDeadlineTimer *rssi_timer)
     }
 }
 
-// --- Unix socket setup moved to unix_socket.cpp ---
-
-int main(int argc, char *argv[]) {
-    int opt;
-    bool is_daemon = false;
+static void daemon_ignore_sigpipe(void)
+{
     // SIGPIPE ignorieren: write() auf geschlossenen Socket crasht sonst den Daemon
     signal(SIGPIPE, SIG_IGN);
+}
+
+static bool daemon_parse_args(int argc, char *argv[])
+{
+    int opt;
+    bool is_daemon = false;
 
     // Parsen der Argumente
     while ((opt = getopt(argc, argv, "d")) != -1) {
@@ -848,6 +851,15 @@ int main(int argc, char *argv[]) {
                 exit(EXIT_FAILURE);
         }
     }
+
+    return is_daemon;
+}
+
+// --- Unix socket setup moved to unix_socket.cpp ---
+
+int main(int argc, char *argv[]) {
+    daemon_ignore_sigpipe();
+    bool is_daemon = daemon_parse_args(argc, argv);
 
     // --- Userspace-Daemon Implementation ---
     if (is_daemon)
