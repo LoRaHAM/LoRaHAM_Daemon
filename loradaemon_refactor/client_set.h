@@ -3,7 +3,6 @@
 
 #include <stddef.h>
 #include <stdint.h>
-#include <sys/select.h>
 #include <sys/types.h>
 
 #include "event_loop.h"
