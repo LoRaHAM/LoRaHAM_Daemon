@@ -276,6 +276,20 @@ ssize_t client_set_read_slot(int *clients, int index, void *buf, size_t len)
     return n;
 }
 
+ssize_t client_set_read_slot_with_output(int *clients,
+                                        ClientOutputQueue *queues,
+                                        int index,
+                                        void *buf,
+                                        size_t len)
+{
+    ssize_t n = client_set_read_slot(clients, index, buf, len);
+
+    if (clients[index] <= 0 && queues)
+        client_output_queue_reset(&queues[index]);
+
+    return n;
+}
+
 int client_set_slot_ready(int *clients, int index, const EventLoopReadySet *ready)
 {
     return clients[index] > 0 && event_loop_ready_fd_read(ready, clients[index]);

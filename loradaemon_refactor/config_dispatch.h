@@ -20,6 +20,7 @@ template<typename RadioT>
 struct ConfigDispatchContext {
     int *clients;
     ConfigStreamBuffer *streams;
+    ClientOutputQueue *output_queues;
     RadioT *radio;
     const char *tag;
     const char *prefix;
@@ -60,6 +61,7 @@ static void config_dispatch_apply_line(const char *line, void *user)
 template<typename RadioT>
 static void config_dispatch_client(int *clients,
                                    ConfigStreamBuffer *streams,
+                                   ClientOutputQueue *output_queues,
                                    int index,
                                    const EventLoopReadySet *readfds,
                                    uint8_t *buf,
@@ -95,7 +97,7 @@ static void config_dispatch_client(int *clients,
             return;
 
         config_stream_init(&streams[index]);
-        client_set_close_slot(clients, index);
+        client_set_close_slot_with_output(clients, output_queues, index);
         return;
     }
 
@@ -108,7 +110,7 @@ static void config_dispatch_client(int *clients,
         }
 
         config_stream_init(&streams[index]);
-        client_set_close_slot(clients, index);
+        client_set_close_slot_with_output(clients, output_queues, index);
         return;
     }
 
@@ -118,7 +120,7 @@ static void config_dispatch_client(int *clients,
         printf("[%s] CONFIG stream too long, client closed\n", tag);
         fflush(stdout);
         config_stream_init(&streams[index]);
-        client_set_close_slot(clients, index);
+        client_set_close_slot_with_output(clients, output_queues, index);
         return;
     }
 }
@@ -126,6 +128,7 @@ static void config_dispatch_client(int *clients,
 template<typename RadioT>
 static void config_dispatch_clients(int *clients,
                                     ConfigStreamBuffer *streams,
+                                    ClientOutputQueue *output_queues,
                                     int max_clients,
                                     const EventLoopReadySet *readfds,
                                     uint8_t *buf,
@@ -138,7 +141,7 @@ static void config_dispatch_clients(int *clients,
                                     void (*rx_callback)(void))
 {
     for(int i=0;i<max_clients;i++){
-        config_dispatch_client<RadioT>(clients, streams, i, readfds, buf,
+        config_dispatch_client<RadioT>(clients, streams, output_queues, i, readfds, buf,
                                        radio, tag, prefix,
                                        mode, getrssi_active,
                                        apply_config, rx_callback);
@@ -152,6 +155,7 @@ static void config_dispatch_context(ConfigDispatchContext<RadioT> *ctx,
                                     uint8_t *buf)
 {
     config_dispatch_clients<RadioT>(ctx->clients, ctx->streams,
+                                    ctx->output_queues,
                                     max_clients, readfds, buf,
                                     *ctx->radio, ctx->tag, ctx->prefix,
                                     *ctx->mode, *ctx->getrssi_active,

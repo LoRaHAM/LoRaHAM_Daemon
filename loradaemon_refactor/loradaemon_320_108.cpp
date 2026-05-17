@@ -751,6 +751,7 @@ static ConfigDispatchContext<SX1278> daemon_config_433_context(void)
     ConfigDispatchContext<SX1278> ctx = {
         client_conf433,
         config_stream_conf433,
+        output_conf433,
         radio_433,
         "CONF 433",
         "[CONF433]",
@@ -768,6 +769,7 @@ static ConfigDispatchContext<RFM95> daemon_config_868_context(void)
     ConfigDispatchContext<RFM95> ctx = {
         client_conf868,
         config_stream_conf868,
+        output_conf868,
         radio_868,
         "CONF 868",
         "[CONF868]",
@@ -845,10 +847,10 @@ static void daemon_process_ready_sockets(ConfigDispatchContext<SX1278> *config_4
     radio_channel_accept_ready(&channel_433, readfds);
     radio_channel_accept_ready(&channel_868, readfds);
 
-    data_tx_process_clients("433", client_data433, MAX_CLIENTS,
-                            readfds, send_data_chunk, data_tx_433_ctx);
-    data_tx_process_clients("868", client_data868, MAX_CLIENTS,
-                            readfds, send_data_chunk, data_tx_868_ctx);
+    data_tx_process_clients_with_output("433", client_data433, output_data433, MAX_CLIENTS,
+                                        readfds, send_data_chunk, data_tx_433_ctx);
+    data_tx_process_clients_with_output("868", client_data868, output_data868, MAX_CLIENTS,
+                                        readfds, send_data_chunk, data_tx_868_ctx);
 
     process_config_dispatch(config_433_ctx, config_868_ctx, readfds, buf);
 

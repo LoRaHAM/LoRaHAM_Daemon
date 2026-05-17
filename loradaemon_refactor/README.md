@@ -198,6 +198,7 @@ Refactored by Johannes Loose / 410733@gmail.com
 - Hardening: accepted client sockets are non-blocking; EAGAIN/EWOULDBLOCK no longer closes clients.
 - Hardening: daemon broadcasts now use bounded per-client output queues with non-blocking immediate flush.
 - Hardening: queued client output is now flushed from EPOLLOUT/write-ready events.
+- Hardening: read-side client disconnects now reset their queued output immediately.
 - Bugfixes
   - Fix CONFIG stream framing: fragmented commands are buffered and newline-separated commands are processed individually.
   - Fix client broadcast errors: failed writes close broken clients instead of keeping stale slots.

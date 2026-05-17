@@ -5,6 +5,7 @@
 #include <stdint.h>
 
 #include "event_loop.h"
+#include "client_set.h"
 
 /* --- DATA TX chunking --- */
 
@@ -28,5 +29,13 @@ void data_tx_process_clients(const char *tag,
                              const EventLoopReadySet *readfds,
                              DataTxChunkHandler handler,
                              void *ctx);
+
+void data_tx_process_clients_with_output(const char *tag,
+                                         int *clients,
+                                         ClientOutputQueue *queues,
+                                         int max_clients,
+                                         const EventLoopReadySet *readfds,
+                                         DataTxChunkHandler handler,
+                                         void *ctx);
 
 #endif

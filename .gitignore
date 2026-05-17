@@ -18,3 +18,4 @@
 /loradaemon_refactor/tests/test_known_issues
 /loradaemon_refactor/tests/test_client_queued_broadcast
 /loradaemon_refactor/tests/test_event_loop_output_flush
+/loradaemon_refactor/tests/test_client_read_disconnect_cleanup

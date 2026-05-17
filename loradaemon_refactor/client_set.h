@@ -36,6 +36,7 @@ void client_set_close_slot_with_output(int *clients, ClientOutputQueue *queues, 
 void client_set_close_all(int *clients, int max_clients);
 void client_set_close_all_with_output(int *clients, ClientOutputQueue *queues, int max_clients);
 ssize_t client_set_read_slot(int *clients, int index, void *buf, size_t len);
+ssize_t client_set_read_slot_with_output(int *clients, ClientOutputQueue *queues, int index, void *buf, size_t len);
 void client_set_add_to_event_loop(int *clients, int max_clients, EventLoopSet *set);
 void client_set_add_to_event_loop_with_output(int *clients, ClientOutputQueue *queues, int max_clients, EventLoopSet *set);
 int client_set_slot_ready(int *clients, int index, const EventLoopReadySet *ready);

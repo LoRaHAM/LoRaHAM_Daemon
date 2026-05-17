@@ -137,6 +137,7 @@ static void test_dispatch_ready_client(void)
     ConfigDispatchContext<FakeRadio> ctx = {
         clients,
         streams,
+        NULL,
         &radio,
         "CONF TEST",
         "[TEST]",
@@ -202,6 +203,7 @@ static void test_dispatch_ready_client_epoll(void)
     ConfigDispatchContext<FakeRadio> ctx = {
         clients,
         streams,
+        NULL,
         &radio,
         "CONF TEST",
         "[TEST]",
@@ -253,6 +255,7 @@ static void test_dispatch_ignores_not_ready_client(void)
     ConfigDispatchContext<FakeRadio> ctx = {
         clients,
         streams,
+        NULL,
         &radio,
         "CONF TEST",
         NULL,
@@ -305,6 +308,7 @@ static void test_dispatch_closes_eof_client(void)
     ConfigDispatchContext<FakeRadio> ctx = {
         clients,
         streams,
+        NULL,
         &radio,
         "CONF TEST",
         NULL,
