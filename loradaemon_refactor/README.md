@@ -236,3 +236,5 @@ Initial version: loradaemon_320_108
   - --help
 
 - here we track our comments, one line for each commit. I may decide to clear that later.
+- Build script: made usage/help path-independent while keeping build-from-anywhere behavior.
+- Build script: made help output avoid absolute checkout paths.

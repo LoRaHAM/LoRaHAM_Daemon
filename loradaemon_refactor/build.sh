@@ -3,6 +3,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd -- "$SCRIPT_DIR/.." && pwd)"
+SCRIPT_NAME="${0##*/}"
 
 DAEMON_SRC="$SCRIPT_DIR/loraham_daemon.cpp"
 DAEMON_OUT="$SCRIPT_DIR/loraham_daemon"
@@ -41,12 +42,12 @@ daemon_support_sources=(
 
 usage() {
   cat <<EOF_HELP
-Usage: build.sh [options]
+Usage: $SCRIPT_NAME [options]
 
 Build the production daemon binary only.
 
 Options:
-  --output PATH        Output binary path, default: $DAEMON_OUT
+  --output PATH        Output binary path, default: ./loraham_daemon next to build.sh
   --radiolib-dir DIR   RadioLib source tree with src/ and build/libRadioLib.a
   --debug             Build with -O0 -g instead of release defaults
   --clean             Remove the daemon binary and exit
@@ -60,7 +61,7 @@ Environment:
   RADIOLIB_DIR        Same as --radiolib-dir
 
 Tests:
-  Use run_tests.sh to build and run tests.
+  Use ./run_tests.sh from this directory to build and run tests.
 EOF_HELP
 }
 
@@ -250,7 +251,7 @@ build_daemon() {
     echo "  find \"\$HOME\" -maxdepth 4 -name libRadioLib.a 2>/dev/null" >&2
     echo "" >&2
     echo "Then run for example:" >&2
-    echo "  RADIOLIB_DIR=\$HOME/src/RadioLib $0" >&2
+    echo "  RADIOLIB_DIR=\$HOME/src/RadioLib $SCRIPT_DIR/$SCRIPT_NAME" >&2
     echo "" >&2
     echo "Or build RadioLib first:" >&2
     echo "  git clone https://github.com/jgromes/RadioLib \$HOME/src/RadioLib" >&2
