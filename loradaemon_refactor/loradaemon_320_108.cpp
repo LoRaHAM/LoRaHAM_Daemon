@@ -140,6 +140,7 @@
 #include <lgpio.h>
 
 #include "daemon_protocol.h"
+#include "daemon_version.h"
 #include "daemon_timing.h"
 #include "daemon_lifecycle.h"
 #include "daemon_log.h"
@@ -1654,7 +1655,17 @@ static void daemon_ignore_sigpipe(void)
 
 static void daemon_print_usage(const char *argv0)
 {
-    printf("Nutzung: %s [-d] [-v|--verbose] [--debug] [--help]\n", argv0);
+    printf("Nutzung: %s [-d] [-v|--version] [--verbose] [--debug] [--help]\n", argv0);
+}
+
+static void daemon_print_version(void)
+{
+    printf("%s\n", LORAHAM_DAEMON_VERSION_TEXT);
+}
+
+static void daemon_print_startup_version(void)
+{
+    printf("[Daemon] %s\n", LORAHAM_DAEMON_VERSION_TEXT);
 }
 
 static bool daemon_parse_args(int argc, char *argv[])
@@ -1662,7 +1673,8 @@ static bool daemon_parse_args(int argc, char *argv[])
     int opt;
     bool is_daemon = false;
     static const struct option long_options[] = {
-        {"verbose", no_argument, 0, 'v'},
+        {"version", no_argument, 0, 'v'},
+        {"verbose", no_argument, 0, 1001},
         {"debug",   no_argument, 0, 1000},
         {"help",    no_argument, 0, 'h'},
         {0, 0, 0, 0}
@@ -1676,6 +1688,9 @@ static bool daemon_parse_args(int argc, char *argv[])
                 daemon_debug_ctx("STARTUP", "Option -d erkannt");
                 break;
             case 'v':
+                daemon_print_version();
+                exit(EXIT_SUCCESS);
+            case 1001:
                 if (daemon_log_level < DAEMON_LOG_VERBOSE)
                     daemon_log_level = DAEMON_LOG_VERBOSE;
                 daemon_verbose_ctx("STARTUP", "Verbose aktiv");
@@ -1708,6 +1723,8 @@ static void daemon_startup_sequence(int argc, char *argv[])
     // --- Userspace-Daemon Implementation ---
     if (is_daemon)
         daemon_enter_background();
+
+    daemon_print_startup_version();
 
     daemon_debug_ctx("STARTUP", "Starte Radio- und Socket-Init");
     daemon_radio_io_init();
