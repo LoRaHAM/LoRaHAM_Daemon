@@ -47,7 +47,7 @@
  *  -llgpio -lpthread
  *  ----
  *
-   g++ -o loraham_daemon loradaemon_320_108.cpp -I/home/raspberry/RadioLib/src -I/home/raspberry/RadioLib/src/modules \
+   g++ -o loraham_daemon loraham_daemon.cpp -I/home/raspberry/RadioLib/src -I/home/raspberry/RadioLib/src/modules \
    -I/home/raspberry/RadioLib/src/protocols/PhysicalLayer /home/raspberry/RadioLib/build/libRadioLib.a -llgpio
  *
  *

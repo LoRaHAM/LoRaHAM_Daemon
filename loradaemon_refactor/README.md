@@ -16,7 +16,7 @@ The daemon is the interface between the LoRaHAM radio hardware and applications 
 
 | Area | File/module | Role |
 |---|---|---|
-| Main daemon | `loradaemon_320_108.cpp` | Radio setup, main loop, TX/RX flow, CAD/RSSI polling |
+| Main daemon | `loraham_daemon.cpp` | Radio setup, main loop, TX/RX flow, CAD/RSSI polling |
 | Event loop | `event_loop.cpp`, `event_loop_epoll.cpp` | epoll-based socket waiting |
 | UNIX sockets | `unix_socket.cpp` | Create and remove socket files |
 | Client handling | `client_set.cpp`, `client_slot.cpp` | Client slots, reads, closes, broadcasts, unified slot state helpers |
@@ -205,6 +205,7 @@ The original project is licensed under GNU GPL v3 with additional conditions sta
 - no warranty; use at your own risk
 
 ## Changelog
+- Source layout: rename main daemon source to `loraham_daemon.cpp`.
 - Versioning: add daemon version 109 and expose it with -v/--version.
 - Test cleanup: remove brittle debug/verbose structural CLI check.
 - Build cleanup: remove obsolete build.sh test/test compatibility branch and verbose CLI smoke tests.

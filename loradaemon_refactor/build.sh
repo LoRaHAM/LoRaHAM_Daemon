@@ -4,7 +4,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd -- "$SCRIPT_DIR/.." && pwd)"
 
-DAEMON_SRC="$SCRIPT_DIR/loradaemon_320_108.cpp"
+DAEMON_SRC="$SCRIPT_DIR/loraham_daemon.cpp"
 DAEMON_OUT="$SCRIPT_DIR/loraham_daemon"
 
 cxx="${CXX:-g++}"
