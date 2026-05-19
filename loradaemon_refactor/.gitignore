@@ -36,7 +36,6 @@ core.*
 /tests/test_client_slow_output
 /tests/test_event_loop_output_flush
 /tests/test_client_read_disconnect_cleanup
-/tests/test_client_slot
 /tests/test_tx_result
 /tests/test_radio_health
 /tests/test_rf_packet

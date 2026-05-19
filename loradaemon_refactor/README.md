@@ -237,3 +237,4 @@ Initial version: loradaemon_320_108
 
 - Tests: trimmed structural refactor checks and kept behavior/protocol tests.
 - Tests: removed XFAIL known-issues placeholder from the regular suite.
+- Tests: removed structural ClientSlot layout test from the regular suite.
