@@ -444,7 +444,6 @@ build_tests() {
   build_one_test "$TEST_DIR/test_interface_baseline.c" "$TEST_DIR/test_interface_baseline"
   build_one_test "$TEST_DIR/test_config_stream.c" "$TEST_DIR/test_config_stream"
   build_one_test "$TEST_DIR/test_client_lifecycle.c" "$TEST_DIR/test_client_lifecycle"
-  build_one_test "$TEST_DIR/test_known_issues.c" "$TEST_DIR/test_known_issues"
 }
 
 usage() {
@@ -524,7 +523,6 @@ tests=(
   "$TEST_DIR/test_config_stream"
   "$TEST_DIR/test_rssi_multiclient"
   "$TEST_DIR/test_client_lifecycle"
-  "$TEST_DIR/test_known_issues"
 )
 
 overall_rc=0

@@ -2,7 +2,6 @@
 /tests/test_interface_baseline
 /tests/test_config_stream
 /tests/test_client_lifecycle
-/tests/test_known_issues
 /tests/test_loradaemon_interface
 
 # Local test backups created by helper scripts
