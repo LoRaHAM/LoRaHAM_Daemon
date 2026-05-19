@@ -204,13 +204,6 @@ The original project is licensed under GNU GPL v3 with additional conditions sta
 - no warranty; use at your own risk
 
 ## Changelog
-- CLI: keep -d/--daemon, -v/--version and --debug; improve help output.
-- Source layout: rename main daemon source to `loraham_daemon.cpp`.
-- Versioning: add daemon version 109 and expose it with -v/--version.
-- Test cleanup: remove brittle debug/verbose structural CLI check.
-- Build cleanup: remove obsolete build.sh test/test compatibility branch and verbose CLI smoke tests.
-
-
 Refactored by Johannes Loose / 410733@gmail.com
 Initial version: loradaemon_320_108
 
@@ -235,7 +228,10 @@ Initial version: loradaemon_320_108
   - Fix TX bounds checks: invalid or oversized packets are rejected before copy/transmit.
   - Fix RX error forwarding: RadioLib CRC/header/read errors are dropped and counted.
   
-- Feature
+- Features
   - Debug logging
   - Build Script
   - Versioning
+  - --help
+
+- here we track our comments, one line for each commit. I may decide to clear that later.
