@@ -4,14 +4,12 @@
 /tests/test_client_lifecycle
 /tests/test_known_issues
 /tests/test_loradaemon_interface
-/tests/test_loradaemon_320_108_interface
 
 # Local test backups created by helper scripts
 /tests/backup-*/
 
 # Optional local daemon binaries built inside this refactor directory
 /loraham_daemon
-/loradaemon_320_108
 
 # Object files and local build leftovers
 *.o
