@@ -248,7 +248,7 @@ static void daemon_enter_background(void)
     freopen("/tmp/lora_daemon.log", "w", stdout); // Optional: In Datei loggen
     freopen("/tmp/lora_daemon.log", "w", stderr);
 
-    daemon_verbose_ctx("STARTUP", "Daemon-Modus aktiv");
+    daemon_debug_ctx("STARTUP", "Daemon-Modus aktiv");
 }
 /* --- Radio controller state ---------------------------------------------- */
 
@@ -347,7 +347,7 @@ static void radio_controller_shutdown(RadioController<RadioT> *ctrl)
         return;
 
     tag = radio_controller_tag(ctrl);
-    daemon_verbose_ctx(tag, "Radio-Shutdown");
+    daemon_debug_ctx(tag, "Radio-Shutdown");
 
     if (ctrl->radio) {
         if (radio_controller_ready(ctrl)) {
@@ -630,7 +630,7 @@ TxResult lora_send(uint8_t *buf, size_t len, int band) {
 // --- Init LoRa ---
 void lora_init() {
     printf("[Init] Starte Dualband LoRa Receiver (433 + 868)\n");
-    daemon_verbose_ctx("RADIO", "Funk-Init beginnt");
+    daemon_debug_ctx("RADIO", "Funk-Init beginnt");
 
     radio_controller_433.health = RADIO_HEALTH_UNINITIALIZED;
     radio_controller_868.health = RADIO_HEALTH_UNINITIALIZED;
@@ -661,7 +661,7 @@ void lora_init() {
     if (state_433 == RADIOLIB_ERR_NONE) {
         radio_controller_433.health = RADIO_HEALTH_READY;
         printf("[433] Init OK\n");
-        daemon_verbose_ctx("433", "Radio bereit");
+        daemon_debug_ctx("433", "Radio bereit");
 
         // LoRa-APRS:
         radio_controller_433.radio->setFrequency(433.900);
@@ -733,7 +733,7 @@ void lora_init() {
     if (state_868 == RADIOLIB_ERR_NONE) {
         radio_controller_868.health = RADIO_HEALTH_READY;
         printf("[868] Init OK\n");
-        daemon_verbose_ctx("868", "Radio bereit");
+        daemon_debug_ctx("868", "Radio bereit");
 
         radio_controller_868.radio->setFrequency(869.525);
         radio_controller_868.radio->setSpreadingFactor(11);
@@ -774,7 +774,7 @@ void lora_init() {
         daemon_debug_band("868", "RX Start übersprungen");
     }
 
-    daemon_verbose_ctx("RADIO", "Funk-Init abgeschlossen");
+    daemon_debug_ctx("RADIO", "Funk-Init abgeschlossen");
     fflush(stdout);
 }
 
@@ -1619,7 +1619,7 @@ static void daemon_process_loop_iteration(EventLoopSet *event_set,
 static void daemon_run_polling_loop(DaemonMainContext *ctx)
 {
     daemon_log_loop_start();
-    daemon_verbose_ctx("LIFE", "Polling aktiv");
+    daemon_debug_ctx("LIFE", "Polling aktiv");
 
     while (!daemon_lifecycle_stop_requested()) {
         daemon_process_loop_iteration(&ctx->event_set,
@@ -1640,7 +1640,7 @@ static void daemon_run(void)
     daemon_run_polling_loop(&main_ctx);
 
     daemon_log("Stop angefordert");
-    daemon_verbose_ctx("LIFE", "Shutdown beginnt");
+    daemon_debug_ctx("LIFE", "Shutdown beginnt");
     daemon_shutdown_cleanup(&main_ctx.event_set);
     daemon_debug_ctx("LIFE", "Shutdown abgeschlossen");
 }
@@ -1655,9 +1655,29 @@ static void daemon_ignore_sigpipe(void)
 
 static void daemon_print_usage(const char *argv0)
 {
-    printf("Nutzung: %s [-d] [-v|--version] [--verbose] [--debug] [--help]\n", argv0);
+    printf("%s\n", LORAHAM_DAEMON_VERSION_TEXT);
+    printf("\n");
+    printf("Nutzung:\n");
+    printf("  %s [Optionen]\n", argv0);
+    printf("\n");
+    printf("Optionen:\n");
+    printf("  -d, --daemon     Im Hintergrund starten, Log: /tmp/lora_daemon.log\n");
+    printf("  -v, --version    Version anzeigen und beenden\n");
+    printf("      --debug      Debug-Log aktivieren\n");
+    printf("  -h, --help       Diese Hilfe anzeigen und beenden\n");
+    printf("\n");
+    printf("Sockets:\n");
+    printf("  DATA 433: /tmp/lora433.sock\n");
+    printf("  DATA 868: /tmp/lora868.sock\n");
+    printf("  CONF 433: /tmp/loraconf433.sock\n");
+    printf("  CONF 868: /tmp/loraconf868.sock\n");
+    printf("\n");
+    printf("Beispiele:\n");
+    printf("  %s\n", argv0);
+    printf("  %s -d\n", argv0);
+    printf("  %s --debug\n", argv0);
+    printf("  %s --version\n", argv0);
 }
-
 static void daemon_print_version(void)
 {
     printf("%s\n", LORAHAM_DAEMON_VERSION_TEXT);
@@ -1673,8 +1693,8 @@ static bool daemon_parse_args(int argc, char *argv[])
     int opt;
     bool is_daemon = false;
     static const struct option long_options[] = {
+        {"daemon",  no_argument, 0, 'd'},
         {"version", no_argument, 0, 'v'},
-        {"verbose", no_argument, 0, 1001},
         {"debug",   no_argument, 0, 1000},
         {"help",    no_argument, 0, 'h'},
         {0, 0, 0, 0}
@@ -1690,11 +1710,6 @@ static bool daemon_parse_args(int argc, char *argv[])
             case 'v':
                 daemon_print_version();
                 exit(EXIT_SUCCESS);
-            case 1001:
-                if (daemon_log_level < DAEMON_LOG_VERBOSE)
-                    daemon_log_level = DAEMON_LOG_VERBOSE;
-                daemon_verbose_ctx("STARTUP", "Verbose aktiv");
-                break;
             case 1000:
                 daemon_log_level = DAEMON_LOG_DEBUG;
                 daemon_debug_ctx("STARTUP", "Debug aktiv");
@@ -1708,6 +1723,12 @@ static bool daemon_parse_args(int argc, char *argv[])
         }
     }
 
+    if (optind < argc) {
+        fprintf(stderr, "Unbekanntes Argument: %s\n", argv[optind]);
+        daemon_print_usage(argv[0]);
+        exit(EXIT_FAILURE);
+    }
+
     return is_daemon;
 }
 
@@ -1717,7 +1738,7 @@ static void daemon_startup_sequence(int argc, char *argv[])
     daemon_ignore_sigpipe();
     bool is_daemon = daemon_parse_args(argc, argv);
 
-    daemon_verbose_ctx("STARTUP", "Startmodus: %s", is_daemon ? "Daemon" : "Vordergrund");
+    daemon_debug_ctx("STARTUP", "Startmodus: %s", is_daemon ? "Daemon" : "Vordergrund");
     daemon_debug_ctx("STARTUP", "Argumente verarbeitet");
 
     // --- Userspace-Daemon Implementation ---
@@ -1739,5 +1760,3 @@ int main(int argc, char *argv[]) {
 
     return 0;
 }
-
-

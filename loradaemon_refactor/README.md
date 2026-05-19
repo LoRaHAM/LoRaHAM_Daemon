@@ -37,10 +37,9 @@ The daemon is the interface between the LoRaHAM radio hardware and applications 
 | Option | Default | Accepted values | Meaning |
 |---|---:|---|---|
 | none | foreground | - | Run in terminal and print traffic/debug output |
-| `-d` | off | `-d` | Run in background; stdout/stderr go to `/tmp/lora_daemon.log` |
+| `-d`, `--daemon` | off | `-d`, `--daemon` | Run in background; stdout/stderr go to `/tmp/lora_daemon.log` |
 | `-v`, `--version` | - | `-v`, `--version` | Print daemon version and exit |
-| `--verbose` | off | `--verbose` | Enable verbose startup/runtime logging |
-| `--debug` | off | `--debug` | Enable debug logging |
+| `--debug` | off | `--debug` | Enable debug log output |
 | `-h`, `--help` | - | `-h`, `--help` | Print usage and exit |
 
 ## UNIX socket interface
@@ -205,10 +204,13 @@ The original project is licensed under GNU GPL v3 with additional conditions sta
 - no warranty; use at your own risk
 
 ## Changelog
+- CLI: keep -d/--daemon, -v/--version and --debug; improve help output.
 - Source layout: rename main daemon source to `loraham_daemon.cpp`.
 - Versioning: add daemon version 109 and expose it with -v/--version.
 - Test cleanup: remove brittle debug/verbose structural CLI check.
 - Build cleanup: remove obsolete build.sh test/test compatibility branch and verbose CLI smoke tests.
+
+
 Refactored by Johannes Loose / 410733@gmail.com
 Initial version: loradaemon_320_108
 
@@ -235,3 +237,5 @@ Initial version: loradaemon_320_108
   
 - Feature
   - Debug logging
+  - Build Script
+  - Versioning

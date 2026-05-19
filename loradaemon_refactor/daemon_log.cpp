@@ -5,11 +5,6 @@
 
 DaemonLogLevel daemon_log_level = DAEMON_LOG_NORMAL;
 
-bool daemon_verbose_enabled(void)
-{
-    return daemon_log_level >= DAEMON_LOG_VERBOSE;
-}
-
 bool daemon_debug_enabled(void)
 {
     return daemon_log_level >= DAEMON_LOG_DEBUG;
@@ -37,18 +32,6 @@ static void daemon_vlog_ctx(const char *ctx, const char *fmt, va_list ap)
 
     snprintf(prefix, sizeof(prefix), "[%s]", ctx ? ctx : "?");
     daemon_vlog(prefix, fmt, ap);
-}
-
-void daemon_verbose_ctx(const char *ctx, const char *fmt, ...)
-{
-    va_list ap;
-
-    if (!daemon_verbose_enabled())
-        return;
-
-    va_start(ap, fmt);
-    daemon_vlog_ctx(ctx, fmt, ap);
-    va_end(ap);
 }
 
 void daemon_debug_ctx(const char *ctx, const char *fmt, ...)
