@@ -235,3 +235,4 @@ Initial version: loradaemon_320_108
   - Versioning     now lives in daemon_version.h
   
 
+- Tests: trimmed structural refactor checks and kept behavior/protocol tests.

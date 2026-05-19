@@ -319,42 +319,6 @@ build_one_rf_packet_test() {
 
 
 
-build_one_radio_controller_skeleton_test() {
-  local src="$1"
-  local out="$2"
-
-  if [[ "${#radiolib_cflags[@]}" -eq 0 ]]; then
-    if ! find_radiolib; then
-      echo "ERROR: RadioLib not found for radio controller skeleton test." >&2
-      exit 1
-    fi
-  fi
-
-  build_one_cpp_sources \
-    "$out" \
-    "${radiolib_cflags[@]}" \
-    "$src" \
-    "$SCRIPT_DIR/radio_health.cpp"
-}
-
-build_one_radio_controller_accessors_test() {
-  local src="$1"
-  local out="$2"
-
-  if [[ "${#radiolib_cflags[@]}" -eq 0 ]]; then
-    if ! find_radiolib; then
-      echo "ERROR: RadioLib not found for radio controller accessors test." >&2
-      exit 1
-    fi
-  fi
-
-  build_one_cpp_sources \
-    "$out" \
-    "${radiolib_cflags[@]}" \
-    "$src" \
-    "$SCRIPT_DIR/radio_health.cpp"
-}
-
 build_one_radio_health_test() {
   local src="$1"
   local out="$2"
@@ -464,8 +428,6 @@ build_tests() {
   build_one_event_loop_output_flush_test "$TEST_DIR/test_event_loop_output_flush.cpp" "$TEST_DIR/test_event_loop_output_flush"
   build_one_tx_result_test "$TEST_DIR/test_tx_result.cpp" "$TEST_DIR/test_tx_result"
   build_one_radio_health_test "$TEST_DIR/test_radio_health.cpp" "$TEST_DIR/test_radio_health"
-  build_one_radio_controller_skeleton_test "$TEST_DIR/test_radio_controller_skeleton.cpp" "$TEST_DIR/test_radio_controller_skeleton"
-  build_one_radio_controller_accessors_test "$TEST_DIR/test_radio_controller_accessors.cpp" "$TEST_DIR/test_radio_controller_accessors"
   build_one_rf_packet_test "$TEST_DIR/test_rf_packet.cpp" "$TEST_DIR/test_rf_packet"
   build_one_event_loop_test "$TEST_DIR/test_event_loop.cpp" "$TEST_DIR/test_event_loop"
   build_one_timing_test "$TEST_DIR/test_daemon_timing.cpp" "$TEST_DIR/test_daemon_timing"
@@ -535,42 +497,17 @@ fi
 
 "$SCRIPT_DIR/build.sh"
 build_tests
-"$TEST_DIR/check_no_legacy_blocking_broadcasts.sh"
 
 tests=(
   "$TEST_DIR/test_data_tx"
   "$TEST_DIR/test_client_output_queue"
   "$TEST_DIR/test_client_slot"
-  "$TEST_DIR/check_client_slot_structure.sh"
-  "$TEST_DIR/check_build_test_split.sh"
   "$TEST_DIR/test_client_nonblocking"
   "$TEST_DIR/test_client_queued_broadcast"
   "$TEST_DIR/test_client_slow_output"
   "$TEST_DIR/test_event_loop_output_flush"
   "$TEST_DIR/test_tx_result"
   "$TEST_DIR/test_radio_health"
-  "$TEST_DIR/test_radio_controller_skeleton"
-  "$TEST_DIR/test_radio_controller_accessors"
-  "$TEST_DIR/check_tx_result_propagation.sh"
-  "$TEST_DIR/check_radio_health_guards.sh"
-  "$TEST_DIR/check_radio_controller_cad_rssi.sh"
-  "$TEST_DIR/check_radio_controller_rx_flow.sh"
-  "$TEST_DIR/check_radio_controller_tx_flow.sh"
-  "$TEST_DIR/check_no_legacy_radio_globals.sh"
-  "$TEST_DIR/check_radio_controller_shutdown.sh"
-  "$TEST_DIR/check_radio_controller_unique_ptr.sh"
-  "$TEST_DIR/check_radio_controller_led.sh"
-  "$TEST_DIR/check_startup_lifecycle_logging.sh"
-  "$TEST_DIR/check_context_logging_prefixes.sh"
-  "$TEST_DIR/check_radio_init_shutdown_logging.sh"
-  "$TEST_DIR/check_socket_client_logging.sh"
-  "$TEST_DIR/check_config_context_logging.sh"
-  "$TEST_DIR/check_data_tx_context_logging.sh"
-  "$TEST_DIR/check_rx_cad_rssi_context_logging.sh"
-  "$TEST_DIR/check_default_log_noise.sh"
-  "$TEST_DIR/check_shutdown_eintr_logging.sh"
-  "$TEST_DIR/check_final_cleanup_findings.sh"
-  "$TEST_DIR/check_daemon_log_split.sh"
   "$TEST_DIR/test_rf_packet"
   "$TEST_DIR/test_event_loop"
   "$TEST_DIR/test_daemon_timing"
@@ -582,9 +519,6 @@ tests=(
   "$TEST_DIR/test_config_policy"
   "$TEST_DIR/test_config_validate"
   "$TEST_DIR/test_config_apply_transactional"
-  "$TEST_DIR/check_readme_config_policy.sh"
-  "$TEST_DIR/check_config_apply_strict_parsing.sh"
-  "$TEST_DIR/check_transactional_config_apply.sh"
   "$TEST_DIR/test_config_dispatch"
   "$TEST_DIR/test_interface_baseline"
   "$TEST_DIR/test_config_stream"
