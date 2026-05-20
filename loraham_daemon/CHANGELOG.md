@@ -41,3 +41,4 @@ Initial version: loradaemon_320_108
 - Split client output queue helpers into a dedicated module while preserving client_set compatibility.
 - Add explicit radio-selection CLI parsing for future single-radio operation.
 - Gate runtime socket, dispatch, TX, RX, RSSI, and shutdown paths by selected radio.
+- Harden startup rules for selected radios, event-loop setup, and signal-handler setup.

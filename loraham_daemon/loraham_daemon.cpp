@@ -235,7 +235,6 @@ static bool daemon_parse_radio_selection(const char *arg)
 }
 
 
-
 static void daemon_shutdown_cleanup(EventLoopSet *event_set)
 {
     daemon_debug_ctx("LIFE", "Stoppe Funkmodule");
@@ -285,15 +284,24 @@ static int daemon_wait_for_events(EventLoopSet *event_set,
 static void daemon_runtime_init(EventLoopSet *event_set)
 {
     // Event backend.
-    if (event_loop_init(event_set) != 0)
+    if (event_loop_init(event_set) != 0) {
         perror("epoll");
+        printf("[Daemon] Event-Backend konnte nicht gestartet werden, beende.\n");
+        daemon_shutdown_cleanup(event_set);
+        exit(EXIT_FAILURE);
+    }
+
     printf("[Daemon] Event-Backend: %s\n",
            event_loop_backend_name(event_loop_backend(event_set)));
 
     // Stop signals.
     daemon_lifecycle_reset_stop();
-    if (daemon_lifecycle_install_signal_handlers() != 0)
+    if (daemon_lifecycle_install_signal_handlers() != 0) {
         perror("sigaction");
+        printf("[Daemon] Signal-Handler konnten nicht gesetzt werden, beende.\n");
+        daemon_shutdown_cleanup(event_set);
+        exit(EXIT_FAILURE);
+    }
 }
 
 static void daemon_enter_background(void)
@@ -699,6 +707,55 @@ TxResult lora_send(uint8_t *buf, size_t len, int band) {
 
 
 
+static bool daemon_selected_radio_ready(void)
+{
+    if (daemon_radio_433_enabled() && radio_controller_ready(&radio_controller_433))
+        return true;
+
+    if (daemon_radio_868_enabled() && radio_controller_ready(&radio_controller_868))
+        return true;
+
+    return false;
+}
+
+static void daemon_log_active_radios(void)
+{
+    bool active_433 = daemon_radio_433_enabled() &&
+                      radio_controller_ready(&radio_controller_433);
+    bool active_868 = daemon_radio_868_enabled() &&
+                      radio_controller_ready(&radio_controller_868);
+
+    if (active_433 && active_868) {
+        printf("[Daemon] Aktive Radios: 433, 868\n");
+    } else if (active_433) {
+        printf("[Daemon] Aktive Radios: 433\n");
+    } else if (active_868) {
+        printf("[Daemon] Aktive Radios: 868\n");
+    } else {
+        printf("[Daemon] Aktive Radios: none\n");
+    }
+}
+
+static void daemon_startup_io_cleanup(void)
+{
+    daemon_debug_ctx("LIFE", "Startup-Cleanup");
+    daemon_radio_shutdown_cleanup();
+
+    if (daemon_radio_433_enabled()) {
+        client_slot_close_all(client_data433_slots, MAX_CLIENTS);
+        client_slot_close_all(client_conf433_slots, MAX_CLIENTS);
+        close_unix_socket(&data433_fd, DATA433_SOCKET);
+        close_unix_socket(&conf433_fd, CONF433_SOCKET);
+    }
+
+    if (daemon_radio_868_enabled()) {
+        client_slot_close_all(client_data868_slots, MAX_CLIENTS);
+        client_slot_close_all(client_conf868_slots, MAX_CLIENTS);
+        close_unix_socket(&data868_fd, DATA868_SOCKET);
+        close_unix_socket(&conf868_fd, CONF868_SOCKET);
+    }
+}
+
 /* --- CONFIG apply module ------------------------------------------------ */
 
 // --- Init LoRa ---
@@ -844,19 +901,23 @@ void lora_init() {
     if (daemon_radio_433_enabled() && radio_controller_ready(&radio_controller_433)) {
         daemon_debug_band("433", "RX starten");
         radio_controller_433.radio->startReceive();
-    } else {
+    } else if (daemon_radio_433_enabled()) {
         printf("[433] RX nicht gestartet: %s\n",
                radio_health_name(radio_controller_433.health));
         daemon_debug_band("433", "RX Start übersprungen");
+    } else {
+        daemon_debug_band("433", "RX Start nicht ausgewählt");
     }
 
     if (daemon_radio_868_enabled() && radio_controller_ready(&radio_controller_868)) {
         daemon_debug_band("868", "RX starten");
         radio_controller_868.radio->startReceive();
-    } else {
+    } else if (daemon_radio_868_enabled()) {
         printf("[868] RX nicht gestartet: %s\n",
                radio_health_name(radio_controller_868.health));
         daemon_debug_band("868", "RX Start übersprungen");
+    } else {
+        daemon_debug_band("868", "RX Start nicht ausgewählt");
     }
 
     daemon_debug_ctx("RADIO", "Funk-Init abgeschlossen");
@@ -909,6 +970,13 @@ static void daemon_radio_io_init(void)
 
     daemon_debug_ctx("RADIO", "RadioLib initialisieren");
     lora_init();
+
+    daemon_log_active_radios();
+    if (!daemon_selected_radio_ready()) {
+        printf("[Daemon] Kein ausgewähltes Radio bereit, beende.\n");
+        daemon_startup_io_cleanup();
+        exit(EXIT_FAILURE);
+    }
 }
 
 /* --- DATA TX structure: context, CAD guard and send callback -------------- */
