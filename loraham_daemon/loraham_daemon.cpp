@@ -1139,16 +1139,6 @@ static void daemon_main_context_init(DaemonMainContext *ctx)
     daemon_loop_context_init(&ctx->loop_ctx);
     daemon_debug_ctx("LIFE", "Laufzeitkontext bereit");
 }
-/* --- CONFIG dispatch ----------------------------------------------------- */
-static void process_config_dispatch(ConfigDispatchContext<SX1278> *config_433_ctx,
-                                    ConfigDispatchContext<RFM95> *config_868_ctx,
-                                    const EventLoopReadySet *readfds,
-                                    uint8_t *buf)
-{
-    config_dispatch_context<SX1278>(config_433_ctx, MAX_CLIENTS, readfds, buf);
-    config_dispatch_context<RFM95>(config_868_ctx, MAX_CLIENTS, readfds, buf);
-}
-
 /* --- Socket dispatch ----------------------------------------------------- */
 static int daemon_client_slot_count(ClientSlot *slots, int max_clients)
 {
