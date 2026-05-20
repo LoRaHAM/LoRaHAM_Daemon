@@ -5,3 +5,4 @@
 - Add AX.25/TNC2 boundary regression tests.
 - Harden TX failure handling with RX restore retry and stats.
 - Reconnect LoRaHAM DATA socket after TX write failure.
+- Centralize LoRaHAM DATA socket disconnect handling.

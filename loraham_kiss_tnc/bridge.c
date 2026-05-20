@@ -141,6 +141,7 @@ static int set_fd_nonblocking(int fd)
     return LHKT_OK;
 }
 
+#ifndef LHKT_TEST
 static void sleep_ms(int ms)
 {
     struct timeval tv;
@@ -157,6 +158,7 @@ static void sleep_ms(int ms)
         tv.tv_usec = (ms % 1000) * 1000;
     }
 }
+#endif
 
 
 #ifdef LHKT_TEST
@@ -1039,24 +1041,18 @@ int lhkt_bridge_run(const lhkt_config_t *cfg, lhkt_stats_t *stats)
                     continue;
                 }
 
-                fprintf(stderr, "[WARN] LoRaHAM data socket read failed, reconnecting\n");
-                lhkt_tcp_server_close(data_fd);
-                data_fd = -1;
-                loraham_rx_state_init(&lora_rx);
-                if (stats) {
-                    stats->socket_reconnects++;
-                }
+                disconnect_loraham_data_socket(&data_fd,
+                                               &lora_rx,
+                                               stats,
+                                               "read failed");
                 continue;
             }
 
             if (n == 0) {
-                fprintf(stderr, "[WARN] LoRaHAM data socket closed, reconnecting\n");
-                lhkt_tcp_server_close(data_fd);
-                data_fd = -1;
-                loraham_rx_state_init(&lora_rx);
-                if (stats) {
-                    stats->socket_reconnects++;
-                }
+                disconnect_loraham_data_socket(&data_fd,
+                                               &lora_rx,
+                                               stats,
+                                               "closed");
                 continue;
             }
 
