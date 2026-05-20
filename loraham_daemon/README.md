@@ -31,7 +31,6 @@ The daemon is the interface between the LoRaHAM radio hardware and applications 
 | Logging | `daemon_log.cpp`, `daemon_log.h` | Normal and debug logging helpers used by daemon/runtime modules |
 | Timing/lifecycle | `daemon_timing.cpp`, `daemon_lifecycle.cpp` | Periodic timers, monotonic timing helpers, stop flag handling, and signal-based shutdown |
 
-
 ## Build and test scripts
 
 - `build.sh` builds the loraham_daemon binary
@@ -45,6 +44,7 @@ The daemon is the interface between the LoRaHAM radio hardware and applications 
 | `-d`, `--daemon` | off | `-d`, `--daemon` | Run in background; stdout/stderr go to `/tmp/lora_daemon.log` |
 | `-v`, `--version` | - | `-v`, `--version` | Print daemon version and exit |
 | `--debug` | off | `--debug` | Enable debug log output |
+| `--radio MODE` | `both` | `both`, `433`, `868` | Select active radio backend: both radios, 433 MHz only, or 868 MHz only |
 | `-h`, `--help` | - | `-h`, `--help` | Print usage and exit |
 
 ## UNIX socket interface

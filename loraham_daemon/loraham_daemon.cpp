@@ -1956,11 +1956,6 @@ static void daemon_print_usage(const char *argv0)
     printf("  CONF 433: /tmp/loraconf433.sock\n");
     printf("  CONF 868: /tmp/loraconf868.sock\n");
     printf("\n");
-    printf("Beispiele:\n");
-    printf("  %s\n", argv0);
-    printf("  %s -d\n", argv0);
-    printf("  %s --debug\n", argv0);
-    printf("  %s --version\n", argv0);
 }
 static void daemon_print_version(void)
 {

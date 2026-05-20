@@ -35,10 +35,7 @@ Initial version: loradaemon_320_108
   - Debug logging`--debug`  
   - Added `--help`  
   - Version now lives in `daemon_version.h`
+  - Added one-radio-mode --radio 433 | 868 | both
 
 
-- Reuse epoll event-loop backend across resets while clearing registered descriptors safely.
-- Split client output queue helpers into a dedicated module while preserving client_set compatibility.
-- Add explicit radio-selection CLI parsing for future single-radio operation.
-- Gate runtime socket, dispatch, TX, RX, RSSI, and shutdown paths by selected radio.
-- Harden startup rules for selected radios, event-loop setup, and signal-handler setup.
+
