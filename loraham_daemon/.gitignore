@@ -44,3 +44,6 @@ core.*
 /tests/test_config_policy
 /tests/test_config_validate
 /tests/test_config_apply_transactional
+
+# Old local/generated interface test binary
+/test_loradaemon_interface
