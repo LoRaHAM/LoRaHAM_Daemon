@@ -17,6 +17,9 @@ Initial version: loradaemon_320_108
   - LED path: radio-flow LED handling now goes through `RadioController`.
   - Logging module: extracted logger implementation into `daemon_log.h/.cpp`.
   - Test hardening: expanded structural guards and integration/regression coverage in `run_tests.sh`.
+  - Harden RX packet handling: validate RX lengths, drop invalid packets safely, and avoid parsing short LoRa payloads as metadata.
+  - Harden CONFIG command validation: require exact SET commands and reject unknown CONFIG keys.
+  - Harden CONFIG apply: abort remaining changes after failed MODE switch and defer GETRSSI until mode switching succeeds.
 
 - Bugfixes
   - Fix CONFIG stream framing: fragmented commands are buffered and newline-separated commands are processed individually.
@@ -32,3 +35,5 @@ Initial version: loradaemon_320_108
   - Debug logging`--debug`  
   - Added `--help`  
   - Version now lives in `daemon_version.h`
+
+
