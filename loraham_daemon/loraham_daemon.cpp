@@ -1938,8 +1938,8 @@ static bool daemon_parse_args(int argc, char *argv[])
                 break;
             case 1001:
                 if (!daemon_parse_radio_selection(optarg)) {
-                    fprintf(stderr, "Ungültiger Radio-Modus: %s\\n", optarg ? optarg : "");
-                    fprintf(stderr, "Erlaubt: both, 433, 868\\n");
+                    fprintf(stderr, "Ungültiger Radio-Modus: %s\n", optarg ? optarg : "");
+                    fprintf(stderr, "Erlaubt: both, 433, 868\n");
                     daemon_print_usage(argv[0]);
                     exit(EXIT_FAILURE);
                 }
