@@ -58,10 +58,19 @@ void radio_channel_accept_ready(RadioChannelIo *ch, const EventLoopReadySet *rea
                                        MAX_CLIENTS);
 }
 
-void radio_channel_open_sockets(RadioChannelIo *ch)
+int radio_channel_open_sockets(RadioChannelIo *ch)
 {
     *ch->data_listen_fd = setup_unix_socket(ch->data_socket_path, MAX_CLIENTS);
+    if (*ch->data_listen_fd < 0)
+        return -1;
+
     *ch->conf_listen_fd = setup_unix_socket(ch->conf_socket_path, MAX_CLIENTS);
+    if (*ch->conf_listen_fd < 0) {
+        close_unix_socket(ch->data_listen_fd, ch->data_socket_path);
+        return -1;
+    }
+
+    return 0;
 }
 
 void radio_channel_flush_ready(RadioChannelIo *ch, const EventLoopReadySet *ready)

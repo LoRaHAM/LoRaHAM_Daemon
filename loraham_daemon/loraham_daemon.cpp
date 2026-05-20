@@ -899,11 +899,21 @@ static void daemon_radio_io_init(void)
                           client_conf868_slots);
 
     daemon_debug_ctx("SOCKET", "Socket-Dateien öffnen");
-    if (daemon_radio_433_enabled())
-        radio_channel_open_sockets(&channel_433);
+    if (daemon_radio_433_enabled() &&
+        radio_channel_open_sockets(&channel_433) != 0) {
+        perror("socket 433");
+        printf("[Daemon] Socket-Setup 433 fehlgeschlagen, beende.\n");
+        daemon_startup_io_cleanup();
+        exit(EXIT_FAILURE);
+    }
 
-    if (daemon_radio_868_enabled())
-        radio_channel_open_sockets(&channel_868);
+    if (daemon_radio_868_enabled() &&
+        radio_channel_open_sockets(&channel_868) != 0) {
+        perror("socket 868");
+        printf("[Daemon] Socket-Setup 868 fehlgeschlagen, beende.\n");
+        daemon_startup_io_cleanup();
+        exit(EXIT_FAILURE);
+    }
 
     daemon_radio_controller_init();
 

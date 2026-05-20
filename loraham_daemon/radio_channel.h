@@ -44,7 +44,7 @@ void radio_channel_io_init(RadioChannelIo *ch,
                            ClientSlot *data_slots,
                            ClientSlot *conf_slots);
 
-void radio_channel_open_sockets(RadioChannelIo *ch);
+int radio_channel_open_sockets(RadioChannelIo *ch);
 void radio_channel_add_fds(RadioChannelIo *ch, EventLoopSet *set);
 void radio_channel_accept_ready(RadioChannelIo *ch, const EventLoopReadySet *ready);
 void radio_channel_flush_ready(RadioChannelIo *ch, const EventLoopReadySet *ready);

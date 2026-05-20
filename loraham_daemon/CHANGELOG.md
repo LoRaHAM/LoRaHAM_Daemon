@@ -41,3 +41,4 @@ Initial version: loradaemon_320_108
 
 - Extract radio-selection parsing and state into a dedicated module.
 - Remove obsolete paired CONFIG dispatch helper after selected-radio dispatch gating.
+- Harden UNIX socket setup to reject non-socket path collisions and propagate setup failures.
