@@ -39,3 +39,4 @@ Initial version: loradaemon_320_108
 
 - Reuse epoll event-loop backend across resets while clearing registered descriptors safely.
 - Split client output queue helpers into a dedicated module while preserving client_set compatibility.
+- Add explicit radio-selection CLI parsing for future single-radio operation.

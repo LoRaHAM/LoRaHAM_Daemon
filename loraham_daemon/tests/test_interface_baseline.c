@@ -26,6 +26,46 @@ static int test_cli_debug_long(void)
     return test_cli_help_option(g_bin, "--debug");
 }
 
+
+static int test_cli_radio_help(void)
+{
+    char out[2048];
+    int exit_code = 0;
+    int ret = run_cli_capture(g_bin, "--radio=433", "--help",
+                              out, sizeof(out), &exit_code);
+
+    if (ret != TEST_PASS)
+        return ret;
+
+    if (exit_code != 0)
+        return TEST_FAIL;
+
+    if (strstr(out, "--radio MODE") == NULL)
+        return TEST_FAIL;
+
+    return TEST_PASS;
+}
+
+static int test_cli_radio_invalid(void)
+{
+    char out[2048];
+    int exit_code = 0;
+    int ret = run_cli_capture(g_bin, "--radio=915", NULL,
+                              out, sizeof(out), &exit_code);
+
+    if (ret != TEST_PASS)
+        return ret;
+
+    if (exit_code == 0)
+        return TEST_FAIL;
+
+    if (strstr(out, "Ungültiger Radio-Modus") == NULL)
+        return TEST_FAIL;
+
+    return TEST_PASS;
+}
+
+
 /* --- Socket availability --- */
 
 static int test_all_sockets(void)
@@ -370,6 +410,8 @@ int main(int argc, char **argv)
 
     run_test("CLI rejects invalid option", test_cli_wrapper);
     run_test("CLI accepts --debug", test_cli_debug_long);
+    run_test("CLI accepts --radio help", test_cli_radio_help);
+    run_test("CLI rejects invalid --radio", test_cli_radio_invalid);
 
     info_msg("starting daemon: %s", g_bin);
     if (start_daemon(g_bin) < 0)

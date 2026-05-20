@@ -1749,6 +1749,66 @@ static void daemon_run(void)
     daemon_debug_ctx("LIFE", "Shutdown abgeschlossen");
 }
 
+
+/* --- Radio selection ----------------------------------------------------- */
+typedef enum {
+    DAEMON_RADIO_SELECTION_BOTH = 0,
+    DAEMON_RADIO_SELECTION_433,
+    DAEMON_RADIO_SELECTION_868
+} DaemonRadioSelection;
+
+static DaemonRadioSelection daemon_radio_selection = DAEMON_RADIO_SELECTION_BOTH;
+
+static const char *daemon_radio_selection_name(DaemonRadioSelection selection)
+{
+    switch (selection) {
+        case DAEMON_RADIO_SELECTION_BOTH:
+            return "both";
+        case DAEMON_RADIO_SELECTION_433:
+            return "433";
+        case DAEMON_RADIO_SELECTION_868:
+            return "868";
+    }
+
+    return "unknown";
+}
+
+static bool daemon_radio_433_enabled(void)
+{
+    return daemon_radio_selection == DAEMON_RADIO_SELECTION_BOTH ||
+           daemon_radio_selection == DAEMON_RADIO_SELECTION_433;
+}
+
+static bool daemon_radio_868_enabled(void)
+{
+    return daemon_radio_selection == DAEMON_RADIO_SELECTION_BOTH ||
+           daemon_radio_selection == DAEMON_RADIO_SELECTION_868;
+}
+
+static bool daemon_parse_radio_selection(const char *arg)
+{
+    if (!arg)
+        return false;
+
+    if (strcmp(arg, "both") == 0) {
+        daemon_radio_selection = DAEMON_RADIO_SELECTION_BOTH;
+        return true;
+    }
+
+    if (strcmp(arg, "433") == 0) {
+        daemon_radio_selection = DAEMON_RADIO_SELECTION_433;
+        return true;
+    }
+
+    if (strcmp(arg, "868") == 0) {
+        daemon_radio_selection = DAEMON_RADIO_SELECTION_868;
+        return true;
+    }
+
+    return false;
+}
+
+
 /* --- Startup helpers ----------------------------------------------------- */
 static void daemon_ignore_sigpipe(void)
 {
@@ -1768,6 +1828,7 @@ static void daemon_print_usage(const char *argv0)
     printf("  -d, --daemon     Im Hintergrund starten, Log: /tmp/lora_daemon.log\n");
     printf("  -v, --version    Version anzeigen und beenden\n");
     printf("      --debug      Debug-Log aktivieren\n");
+    printf("      --radio MODE Radio wählen: both, 433, 868 (Standard: both)\n");
     printf("  -h, --help       Diese Hilfe anzeigen und beenden\n");
     printf("\n");
     printf("Sockets:\n");
@@ -1800,6 +1861,7 @@ static bool daemon_parse_args(int argc, char *argv[])
         {"daemon",  no_argument, 0, 'd'},
         {"version", no_argument, 0, 'v'},
         {"debug",   no_argument, 0, 1000},
+        {"radio",   required_argument, 0, 1001},
         {"help",    no_argument, 0, 'h'},
         {0, 0, 0, 0}
     };
@@ -1817,6 +1879,16 @@ static bool daemon_parse_args(int argc, char *argv[])
             case 1000:
                 daemon_log_level = DAEMON_LOG_DEBUG;
                 daemon_debug_ctx("STARTUP", "Debug aktiv");
+                break;
+            case 1001:
+                if (!daemon_parse_radio_selection(optarg)) {
+                    fprintf(stderr, "Ungültiger Radio-Modus: %s\\n", optarg ? optarg : "");
+                    fprintf(stderr, "Erlaubt: both, 433, 868\\n");
+                    daemon_print_usage(argv[0]);
+                    exit(EXIT_FAILURE);
+                }
+                daemon_debug_ctx("STARTUP", "Option --radio erkannt: %s",
+                                 daemon_radio_selection_name(daemon_radio_selection));
                 break;
             case 'h':
                 daemon_print_usage(argv[0]);
@@ -1843,6 +1915,8 @@ static void daemon_startup_sequence(int argc, char *argv[])
     bool is_daemon = daemon_parse_args(argc, argv);
 
     daemon_debug_ctx("STARTUP", "Startmodus: %s", is_daemon ? "Daemon" : "Vordergrund");
+    daemon_debug_ctx("STARTUP", "Radio-Auswahl: %s",
+                     daemon_radio_selection_name(daemon_radio_selection));
     daemon_debug_ctx("STARTUP", "Argumente verarbeitet");
 
     // --- Userspace-Daemon Implementation ---
