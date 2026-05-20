@@ -118,6 +118,21 @@ static void test_set_without_params(void)
     expect_size("SET without params has no tokens", cmd.tokens.size(), 0);
 }
 
+
+static void test_set_prefix_is_not_set_command(void)
+{
+    ConfigCommand cmd = config_parse_command("SETX FREQ=433.900\n");
+
+    expect_false("SETX is not SET", cmd.is_set);
+    expect_false("SETX has no params", cmd.has_params);
+    expect_size("SETX has no tokens", cmd.tokens.size(), 0);
+
+    cmd = config_parse_command("SETFOO MODE=LORA\n");
+
+    expect_false("SETFOO is not SET", cmd.is_set);
+    expect_size("SETFOO has no tokens", cmd.tokens.size(), 0);
+}
+
 static void test_lora_command(void)
 {
     ConfigCommand cmd = config_parse_command(
@@ -185,6 +200,7 @@ int main(int argc, char **argv)
 
     test_unknown_command();
     test_set_without_params();
+    test_set_prefix_is_not_set_command();
     test_lora_command();
     test_lowercase_keys();
     test_malformed_tokens_are_reported();

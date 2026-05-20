@@ -24,7 +24,7 @@ ConfigCommand config_parse_command(const char *cmd)
         result.text.pop_back();
     }
 
-    if(result.text.rfind("SET", 0) != 0)
+    if(result.text != "SET" && result.text.rfind("SET ", 0) != 0)
         return result;
 
     result.is_set = true;

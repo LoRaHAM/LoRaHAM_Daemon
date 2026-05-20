@@ -134,15 +134,17 @@ static void test_ignored_wrong_mode_keys_preserve_compatibility(void)
     expect_int("ignored lora target", result.target_mode, RADIO_MODE_FSK);
 }
 
-static void test_unknown_keys_preserve_compatibility(void)
+static void test_unknown_key_rejects_whole_command(void)
 {
     int ok = 0;
     ConfigValidationResult result =
-        validate("SET BAD=xyz SF=12",
+        validate("SET POWR=10 SF=12",
                  RADIO_MODE_LORA, &ok);
 
-    expect_int("unknown key ignored", ok, 1);
-    expect_int("unknown key result flag", result.valid, 1);
+    expect_int("unknown key rejected", ok, 0);
+    expect_int("unknown key result flag", result.valid, 0);
+    expect_str("unknown key name", result.key, "POWR");
+    expect_str("unknown key reason", result.reason, "unknown key");
 }
 
 
@@ -185,7 +187,7 @@ int main(int argc, char **argv)
     test_invalid_fsk_value_rejects_before_mode_switch();
     test_invalid_mode_rejects_whole_command();
     test_ignored_wrong_mode_keys_preserve_compatibility();
-    test_unknown_keys_preserve_compatibility();
+    test_unknown_key_rejects_whole_command();
     test_malformed_token_rejects_whole_command();
 
     printf("\nSummary: ok=%d fail=%d\n", g_ok, g_fail);

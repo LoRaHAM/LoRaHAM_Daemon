@@ -46,6 +46,20 @@ static bool config_is_fsk_only_key(const std::string &key)
            key == "OOK" || key == "SHAPING" || key == "ENCODING";
 }
 
+static bool config_is_common_key(const std::string &key)
+{
+    return key == "FREQ" || key == "POWER" ||
+           key == "PREAMBLE" || key == "SYNC";
+}
+
+static bool config_is_known_config_key(const std::string &key)
+{
+    return key == "GETRSSI" ||
+           config_is_common_key(key) ||
+           config_is_lora_only_key(key) ||
+           config_is_fsk_only_key(key);
+}
+
 static bool config_validate_freq_value(const std::string &val)
 {
     float f = 0.0f;
@@ -224,6 +238,12 @@ bool config_validate_command(const ConfigCommand &cmd,
     for (size_t i = 0; i < cmd.tokens.size(); i++) {
         const std::string &key = cmd.tokens[i].first;
         const std::string &val = cmd.tokens[i].second;
+
+        if (!config_is_known_config_key(key)) {
+            config_validation_reject(result, key, val,
+                                     "unknown key");
+            return false;
+        }
 
         if (key == "GETRSSI") {
             if (!config_value_parse_bool01_exact(val, NULL)) {
