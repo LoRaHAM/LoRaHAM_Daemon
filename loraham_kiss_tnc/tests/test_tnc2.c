@@ -62,6 +62,23 @@ static void test_parse_message_payload_unchanged(void)
     assert(memcmp(frame.payload, payload, frame.payload_len) == 0);
 }
 
+static void test_repeated_digipeater_roundtrip(void)
+{
+    ax25_frame_t frame;
+    char line[LHKT_TNC2_MAX_LINE];
+    size_t line_len = 0;
+
+    assert(tnc2_parse_line("DJ0CHE-10>APRS,WIDE1-1*:hello", &frame) == LHKT_OK);
+    assert(frame.path_len == 1);
+    assert(strcmp(frame.path[0].call, "WIDE1") == 0);
+    assert(frame.path[0].ssid == 1);
+    assert(frame.path[0].repeated == 1);
+
+    assert(tnc2_format_line(&frame, line, sizeof(line), &line_len) == LHKT_OK);
+    assert(strcmp(line, "DJ0CHE-10>APRS,WIDE1-1*:hello") == 0);
+    assert(line_len == strlen(line));
+}
+
 static void test_format_roundtrip(void)
 {
     ax25_frame_t in;
@@ -150,6 +167,7 @@ static void test_reject_invalid(void)
 {
     ax25_frame_t frame;
     char long_payload[LHKT_TNC2_MAX_LINE];
+    char too_many_path[LHKT_TNC2_MAX_LINE];
     size_t prefix_len;
     size_t i;
 
@@ -158,6 +176,13 @@ static void test_reject_invalid(void)
     assert(tnc2_parse_line(">APRS:payload", &frame) == LHKT_ERR_FORMAT);
     assert(tnc2_parse_line("DJ0CHE-10>:payload", &frame) == LHKT_ERR_FORMAT);
     assert(tnc2_parse_line("DJ0CHE-10>APRS,:payload", &frame) == LHKT_ERR_FORMAT);
+    assert(tnc2_parse_line("DJ0CHE-10>APRS,,WIDE1-1:payload", &frame) == LHKT_ERR_FORMAT);
+
+    snprintf(too_many_path,
+             sizeof(too_many_path),
+             "DJ0CHE-10>APRS,WIDE1-1,WIDE2-1,WIDE3-1,WIDE4-1,WIDE5-1,WIDE6-1,WIDE7-1,WIDE8-1,WIDE9-1:payload");
+
+    assert(tnc2_parse_line(too_many_path, &frame) == LHKT_ERR_LONG);
 
     snprintf(long_payload,
              sizeof(long_payload),
@@ -177,6 +202,7 @@ int main(void)
     test_strip_eol();
     test_parse_position();
     test_parse_message_payload_unchanged();
+    test_repeated_digipeater_roundtrip();
     test_format_roundtrip();
     test_reject_oversized_format_path();
     test_reject_nul_payload();
