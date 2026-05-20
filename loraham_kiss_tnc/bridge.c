@@ -28,6 +28,7 @@
 #define LHKT_TX_RESTORE_RETRY_DELAY_MS 100
 #define LHKT_TEST_HOOK_MAX_CALLS 16
 
+/* ---- Shutdown ---- */
 
 static volatile sig_atomic_t lhkt_bridge_stop_requested;
 
@@ -75,6 +76,7 @@ int lhkt_test_bridge_should_stop(void)
 }
 #endif
 
+/* ---- fd helpers ---- */
 
 static int wait_fd_writable(int fd)
 {
@@ -238,6 +240,7 @@ static int sleep_ms(int ms)
 }
 #endif
 
+/* ---- Test hooks ---- */
 
 #ifdef LHKT_TEST
 static int lhkt_test_config_results[LHKT_TEST_HOOK_MAX_CALLS];
@@ -317,6 +320,8 @@ size_t lhkt_test_bridge_sleep_call_count(void)
 }
 #endif
 
+/* ---- Timing ---- */
+
 static int bridge_sleep_ms(int ms)
 {
 #ifdef LHKT_TEST
@@ -340,6 +345,8 @@ int lhkt_test_bridge_sleep_ms(int ms)
     return bridge_sleep_ms(ms);
 }
 #endif
+
+/* ---- LoRaHAM sockets/config ---- */
 
 static int send_loraham_config_freq(const lhkt_config_t *cfg, double freq)
 {
@@ -452,6 +459,7 @@ static int restore_loraham_rx_freq(const lhkt_config_t *cfg,
     return ret;
 }
 
+/* ---- Disconnect policy ---- */
 
 static int should_reconnect_loraham_data_socket(int ret)
 {
@@ -509,6 +517,8 @@ void lhkt_test_bridge_disconnect_data_socket(int *data_fd,
 }
 #endif
 
+/* ---- Periodic stats ---- */
+
 static void print_stats_if_due(const lhkt_config_t *cfg,
                                lhkt_stats_t *stats,
                                time_t *next_stats)
@@ -533,10 +543,8 @@ static void print_stats_if_due(const lhkt_config_t *cfg,
     *next_stats = now + cfg->stats_interval;
 }
 
-/*
- * TX path:
- * KISS data frame -> AX.25 UI -> TNC2 -> LoRaHAM packet -> daemon socket.
- */
+/* ---- TX path: KISS -> LoRaHAM ---- */
+
 static int handle_kiss_data_frame(const kiss_frame_t *kiss_frame,
                                   const lhkt_config_t *cfg,
                                   lhkt_stats_t *stats,
@@ -723,10 +731,8 @@ static int handle_kiss_frame(const kiss_frame_t *kiss_frame,
     return LHKT_OK;
 }
 
-/*
- * RX path:
- * TNC2 from LoRaHAM daemon -> AX.25 UI -> KISS data frame -> TCP client.
- */
+/* ---- RX path: LoRaHAM -> KISS ---- */
+
 static int send_tnc2_to_kiss_client(int client_fd,
                                     const char *tnc2,
                                     lhkt_stats_t *stats)
@@ -803,6 +809,8 @@ static int send_tnc2_to_kiss_client(int client_fd,
 
     return LHKT_OK;
 }
+
+/* ---- Unit-test entry points ---- */
 
 #ifdef LHKT_TEST
 int lhkt_test_add_fd_to_set(int fd)
@@ -885,6 +893,8 @@ static int handle_loraham_rx_chunk(int client_fd,
 
     return LHKT_OK;
 }
+
+/* ---- Main loop ---- */
 
 int lhkt_bridge_run(const lhkt_config_t *cfg, lhkt_stats_t *stats)
 {
