@@ -4,48 +4,51 @@ This directory contains the daemon test sources.
 
 ## Usage
 
-Run the full regular test suite from the daemon source directory:
+Run the regular test suite from the daemon source directory:
 
 ```bash
 ./run_tests.sh
 ```
 
-From this `tests/` directory, run:
+Or from this `tests/` directory:
 
 ```bash
 ../run_tests.sh
 ```
 
-The test runner first builds the production daemon with `build.sh`, then builds
-the test binaries, then runs each test against the built daemon binary.
+The runner builds the production daemon with `build.sh`, builds the test
+binaries, and then runs each test against the built daemon binary.
 
-RF transmit tests are disabled by default. Enable them only when suitable
-hardware, frequency settings, and RF conditions are available:
+RF transmit tests are disabled by default. Enable them only with suitable
+hardware, frequency settings, and RF conditions:
 
 ```bash
 ./run_tests.sh --TX --rx-seconds 15
 ```
 
-The test runner refuses to start if a `loraham_daemon` process is already
-running. After each test it checks for lingering daemon processes and terminates
-them if necessary.
+## Runner behavior
+
+`run_tests.sh` currently runs 25 test binaries. It refuses to start if a
+`loraham_daemon` process is already running, checks for lingering daemon
+processes after each test, parses per-test `Summary:` lines, and prints a final
+OK/FAIL/SKIP/XFAIL/XPASS table.
 
 ## Test concept
 
-The test suite is based on current behavior. 
-It should answer these questions:
+The tests should protect externally relevant behavior:
 
-- Does the daemon build and start correctly?
-- Do the public command-line and socket interfaces behave as expected?
-- Does the CONFIG protocol parse, validate, reject, and apply commands safely?
-- Do DATA, RF packet, and TX-result paths preserve the expected wire behavior?
-- Do clients connect, disconnect, block, and receive queued data safely?
-- Do timing, lifecycle, radio-health, and event-loop helper semantics remain
-  stable enough for daemon behavior?
+- daemon build, startup, shutdown, and signal handling
+- public command-line behavior, including selected-radio mode
+- public UNIX socket behavior and cleanup
+- CONFIG command parsing, validation, rejection, and apply safety
+- DATA socket chunking and RF packet handling helpers
+- client lifecycle, queued output, and slow/nonblocking client behavior
+- timing, event-loop, radio-health, and TX-result semantics that affect daemon behavior
+
 
 ## Coverage overview
 
-CONFIG/protocol coverage:
+CONFIG/protocol:
 
 - `test_config_parser`
 - `test_config_stream_buffer`
@@ -56,13 +59,13 @@ CONFIG/protocol coverage:
 - `test_config_apply_transactional`
 - `test_config_dispatch`
 
-DATA/RF/TX coverage:
+DATA/RF/TX:
 
 - `test_data_tx`
 - `test_tx_result`
 - `test_rf_packet`
 
-Client/socket coverage:
+Client/socket/runtime:
 
 - `test_client_output_queue`
 - `test_client_nonblocking`
@@ -73,7 +76,7 @@ Client/socket coverage:
 - `test_rssi_multiclient`
 - `test_unix_socket`
 
-Lifecycle/helper behavior coverage:
+Lifecycle/helper behavior:
 
 - `test_daemon_radio_selection`
 - `test_event_loop`
@@ -84,3 +87,4 @@ Lifecycle/helper behavior coverage:
 Public integration baseline:
 
 - `test_interface_baseline`
+
