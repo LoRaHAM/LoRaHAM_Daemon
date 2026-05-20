@@ -173,6 +173,12 @@ static void test_reject_invalid(void)
     char bad6[] = "mode = FSK";
     char bad7[] = "tx_return_ms = 60001";
     char bad8[] = "ldro = maybe";
+    char bad9[] = "rx_freq = nan";
+    char bad10[] = "tx_freq = inf";
+    char bad11[] = "bw = -inf";
+    char bad12[] = "sf = 6";
+    char bad13[] = "power = -1";
+    char bad14[] = "power = 21";
 
     lhkt_config_defaults(&cfg);
 
@@ -184,6 +190,12 @@ static void test_reject_invalid(void)
     assert(lhkt_config_parse_line(&cfg, bad6, 6) == LHKT_ERR_FORMAT);
     assert(lhkt_config_parse_line(&cfg, bad7, 7) == LHKT_ERR_FORMAT);
     assert(lhkt_config_parse_line(&cfg, bad8, 8) == LHKT_ERR_FORMAT);
+    assert(lhkt_config_parse_line(&cfg, bad9, 9) == LHKT_ERR_FORMAT);
+    assert(lhkt_config_parse_line(&cfg, bad10, 10) == LHKT_ERR_FORMAT);
+    assert(lhkt_config_parse_line(&cfg, bad11, 11) == LHKT_ERR_FORMAT);
+    assert(lhkt_config_parse_line(&cfg, bad12, 12) == LHKT_ERR_FORMAT);
+    assert(lhkt_config_parse_line(&cfg, bad13, 13) == LHKT_ERR_FORMAT);
+    assert(lhkt_config_parse_line(&cfg, bad14, 14) == LHKT_ERR_FORMAT);
 }
 
 int main(void)

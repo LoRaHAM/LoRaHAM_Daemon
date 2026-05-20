@@ -3,6 +3,7 @@
 
 #include <errno.h>
 #include <getopt.h>
+#include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -65,6 +66,7 @@ static int parse_int_arg(const char *text, int min, int max, int *out)
         return LHKT_ERR_FORMAT;
     }
 
+
     if (value < min || value > max) {
         return LHKT_ERR_FORMAT;
     }
@@ -86,6 +88,10 @@ static int parse_double_arg(const char *text, double min, double max, double *ou
     value = strtod(text, &end);
 
     if (errno != 0 || *end != '\0') {
+        return LHKT_ERR_FORMAT;
+    }
+
+    if (!isfinite(value)) {
         return LHKT_ERR_FORMAT;
     }
 

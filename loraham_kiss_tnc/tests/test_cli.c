@@ -100,6 +100,20 @@ static void test_invalid_timing_option(void)
     assert(lhkt_cli_apply(argc_of(argv), argv, &cfg) == LHKT_ERR_FORMAT);
 }
 
+static void test_invalid_double_option(void)
+{
+    lhkt_config_t cfg;
+    char *argv[] = {
+        "test_cli",
+        "--rx-freq", "nan",
+        NULL
+    };
+
+    lhkt_config_defaults(&cfg);
+
+    assert(lhkt_cli_apply(argc_of(argv), argv, &cfg) == LHKT_ERR_FORMAT);
+}
+
 static void test_invalid_port(void)
 {
     lhkt_config_t cfg;
@@ -165,6 +179,7 @@ int main(void)
     test_config_and_cli_override();
     test_timing_options();
     test_invalid_timing_option();
+    test_invalid_double_option();
     test_invalid_port();
     test_missing_config_file();
     test_help_exits_zero();

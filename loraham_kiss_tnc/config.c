@@ -2,6 +2,7 @@
 
 #include <ctype.h>
 #include <errno.h>
+#include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -74,6 +75,7 @@ static int parse_long_value(const char *text, long min, long max, long *out)
         return LHKT_ERR_FORMAT;
     }
 
+
     if (value < min || value > max) {
         return LHKT_ERR_FORMAT;
     }
@@ -100,6 +102,10 @@ static int parse_double_value(const char *text, double min, double max, double *
 
     end = trim(end);
     if (*end != '\0') {
+        return LHKT_ERR_FORMAT;
+    }
+
+    if (!isfinite(value)) {
         return LHKT_ERR_FORMAT;
     }
 
@@ -284,7 +290,7 @@ int lhkt_config_parse_line(lhkt_config_t *cfg, char *line, unsigned int line_no)
     }
 
     if (strcmp(key, "sf") == 0) {
-        ret = parse_long_value(value, 5, 12, &lval);
+        ret = parse_long_value(value, 7, 12, &lval);
         if (ret == LHKT_OK) {
             cfg->sf = (int)lval;
         }
@@ -346,7 +352,7 @@ int lhkt_config_parse_line(lhkt_config_t *cfg, char *line, unsigned int line_no)
     }
 
     if (strcmp(key, "power") == 0) {
-        ret = parse_long_value(value, -9, 22, &lval);
+        ret = parse_long_value(value, 0, 20, &lval);
         if (ret == LHKT_OK) {
             cfg->power = (int)lval;
         }
