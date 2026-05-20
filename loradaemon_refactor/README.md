@@ -16,14 +16,21 @@ The daemon is the interface between the LoRaHAM radio hardware and applications 
 
 | Area | File/module | Role |
 |---|---|---|
-| Main daemon | `loraham_daemon.cpp` | Radio setup, main loop, TX/RX flow, CAD/RSSI polling |
-| Event loop | `event_loop.cpp`, `event_loop_epoll.cpp` | epoll-based socket waiting |
-| UNIX sockets | `unix_socket.cpp` | Create and remove socket files |
-| Client handling | `client_set.cpp`, `client_slot.cpp` | Client slots, reads, closes, broadcasts, unified slot state helpers |
-| DATA TX | `data_tx.cpp` | Split DATA socket writes into RF chunks |
-| CONFIG parser/apply | `config_parser.cpp`, `config_value.cpp`, `config_policy.cpp`, `config_validate.cpp`, `config_apply.cpp`, `config_dispatch.h` | Parse `SET KEY=VALUE` commands, validate complete commands transactionally, and apply RadioLib settings |
-| Radio channel state | `radio_channel.cpp` | Per-band socket/client state, RSSI auto-stop, live RSSI |
-| Timing/lifecycle | `daemon_timing.cpp`, `daemon_lifecycle.cpp` | RSSI timing and signal-based shutdown |
+| Main daemon / orchestration | `loraham_daemon.cpp` | Process entry point, CLI/startup, global runtime context, main event loop, and top-level coordination of socket, CONFIG, DATA TX, CAD/RSSI, and RX flow |
+| Public daemon constants | `daemon_protocol.h` | Public socket paths, buffer size, client limit, and CAD timing constants |
+| Version | `daemon_version.h` | Single source for the daemon version printed by `--version` and at startup |
+| Radio controller state | `radio_controller.h` | Per-band RadioLib/HAL/Module ownership, radio health/mode flags, RX callback state, TX/CAD/RSSI flags, LED pin, and RX drop counter |
+| Radio channel I/O | `radio_channel.cpp`, `radio_channel.h` | Per-band DATA/CONF socket wiring, client accept/flush flow, live RSSI helper, and RSSI auto-stop support |
+| Event loop | `event_loop.cpp`, `event_loop_epoll.cpp` | Backend-neutral event-loop wrapper plus current epoll implementation for socket readiness |
+| UNIX sockets | `unix_socket.cpp` | Create, bind, listen, close, and remove local UNIX socket files |
+| Client handling | `client_set.cpp`, `client_slot.cpp` | Client slots, nonblocking I/O, queued output, disconnect cleanup, and broadcast helpers |
+| DATA TX | `data_tx.cpp` | Split DATA socket writes into RF-sized chunks before transmit |
+| CONFIG stream/parser/apply | `config_stream.cpp`, `config_parser.cpp`, `config_value.cpp`, `config_policy.cpp`, `config_validate.cpp`, `config_apply.cpp`, `config_dispatch.h` | Line framing, strict parsing, validation policy, transactional apply, and dispatch support for `SET KEY=VALUE` commands |
+| RF packet / TX result | `rf_packet.cpp`, `tx_result.cpp` | RF payload validation/preview helpers and normalized TX result states |
+| Radio health | `radio_health.cpp` | Radio readiness/failed-state helpers used to guard CONFIG/TX behavior |
+| Logging | `daemon_log.cpp`, `daemon_log.h` | Normal and debug logging helpers used by daemon/runtime modules |
+| Timing/lifecycle | `daemon_timing.cpp`, `daemon_lifecycle.cpp` | Periodic timers, monotonic timing helpers, stop flag handling, and signal-based shutdown |
+
 
 ## Build and test scripts
 
