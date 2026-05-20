@@ -1,4 +1,5 @@
 # LoRaHAM KISS TNC Bridge
+written by Johannes Loose 410733@gmail.com
 
 KISS/TCP TNC bridge for `LoRaHAM_Daemon`.
 
