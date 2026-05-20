@@ -7,3 +7,4 @@
 - Reconnect LoRaHAM DATA socket after TX write failure.
 - Centralize LoRaHAM DATA socket disconnect handling.
 - Use explicit KISS client socket error handling.
+- Add graceful SIGINT/SIGTERM shutdown handling.

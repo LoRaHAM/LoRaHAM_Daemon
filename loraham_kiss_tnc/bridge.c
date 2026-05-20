@@ -9,6 +9,7 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <stdint.h>
+#include <signal.h>
 #include <stdio.h>
 #include <string.h>
 #include <sys/select.h>
@@ -26,6 +27,53 @@
 #define LHKT_CLIENT_WRITE_TIMEOUT_SEC 2
 #define LHKT_TX_RESTORE_RETRY_DELAY_MS 100
 #define LHKT_TEST_HOOK_MAX_CALLS 16
+
+
+static volatile sig_atomic_t lhkt_bridge_stop_requested;
+
+static void bridge_signal_handler(int signo)
+{
+    (void)signo;
+    lhkt_bridge_stop_requested = 1;
+}
+
+static void bridge_reset_stop_requested(void)
+{
+    lhkt_bridge_stop_requested = 0;
+}
+
+static int bridge_should_stop(void)
+{
+    return lhkt_bridge_stop_requested != 0;
+}
+
+static void bridge_install_signal_handlers(void)
+{
+    if (signal(SIGINT, bridge_signal_handler) == SIG_ERR) {
+        fprintf(stderr, "[WARN] Could not install SIGINT handler\n");
+    }
+
+    if (signal(SIGTERM, bridge_signal_handler) == SIG_ERR) {
+        fprintf(stderr, "[WARN] Could not install SIGTERM handler\n");
+    }
+}
+
+#ifdef LHKT_TEST
+void lhkt_test_bridge_reset_stop(void)
+{
+    bridge_reset_stop_requested();
+}
+
+void lhkt_test_bridge_request_stop(void)
+{
+    bridge_signal_handler(SIGTERM);
+}
+
+int lhkt_test_bridge_should_stop(void)
+{
+    return bridge_should_stop();
+}
+#endif
 
 
 static int wait_fd_writable(int fd)
@@ -823,6 +871,9 @@ int lhkt_bridge_run(const lhkt_config_t *cfg, lhkt_stats_t *stats)
     kiss_params_init(&kiss_params);
     loraham_rx_state_init(&lora_rx);
 
+    bridge_reset_stop_requested();
+    bridge_install_signal_handlers();
+
     conf_fd = loraham_sock_connect(cfg->conf_socket);
     if (conf_fd >= 0) {
         if (loraham_send_config(conf_fd, cfg) == LHKT_OK) {
@@ -859,7 +910,7 @@ int lhkt_bridge_run(const lhkt_config_t *cfg, lhkt_stats_t *stats)
     printf("[KISS] Listening on %s:%d\n", cfg->kiss_host, cfg->kiss_port);
     printf("[KISS] Waiting for client...\n");
 
-    for (;;) {
+    while (!bridge_should_stop()) {
         print_stats_if_due(cfg, stats, &next_stats);
 
         FD_ZERO(&rfds);
@@ -1102,6 +1153,10 @@ int lhkt_bridge_run(const lhkt_config_t *cfg, lhkt_stats_t *stats)
                 }
             }
         }
+    }
+
+    if (bridge_should_stop()) {
+        printf("[Bridge] Shutdown requested\n");
     }
 
     if (client_fd >= 0) {

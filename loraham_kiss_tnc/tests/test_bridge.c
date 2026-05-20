@@ -37,10 +37,26 @@ int lhkt_test_bridge_should_disconnect_kiss_client(int ret);
 void lhkt_test_bridge_disconnect_data_socket(int *data_fd,
                                              loraham_rx_state_t *rx_state,
                                              lhkt_stats_t *stats);
+void lhkt_test_bridge_reset_stop(void);
+void lhkt_test_bridge_request_stop(void);
+int lhkt_test_bridge_should_stop(void);
 
 static void test_fd_set_rejects_too_large_fd(void)
 {
     assert(lhkt_test_add_fd_to_set(FD_SETSIZE) == LHKT_ERR_LONG);
+}
+
+
+static void test_shutdown_stop_flag(void)
+{
+    lhkt_test_bridge_reset_stop();
+    assert(lhkt_test_bridge_should_stop() == 0);
+
+    lhkt_test_bridge_request_stop();
+    assert(lhkt_test_bridge_should_stop() == 1);
+
+    lhkt_test_bridge_reset_stop();
+    assert(lhkt_test_bridge_should_stop() == 0);
 }
 
 
@@ -323,6 +339,7 @@ int main(void)
     signal(SIGPIPE, SIG_IGN);
 
     test_fd_set_rejects_too_large_fd();
+    test_shutdown_stop_flag();
     test_tnc2_to_kiss_output();
     test_nonzero_kiss_port_is_dropped();
     test_invalid_tnc2_is_dropped();
