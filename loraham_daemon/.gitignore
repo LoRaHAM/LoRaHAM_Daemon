@@ -1,0 +1,50 @@
+# Built test binaries
+/tests/test_interface_baseline
+/tests/test_config_stream
+/tests/test_client_lifecycle
+/tests/test_loradaemon_interface
+
+# Local test backups created by helper scripts
+/tests/backup-*/
+# Optional local daemon binaries built inside this refactor directory
+/loraham_daemon
+# Object files and local build leftovers
+*.o
+*.a
+*.so
+*.d
+*.log
+core
+core.*
+# Local editor/temp files
+*~
+*.swp
+*.swo
+/tests/test_config_parser
+/tests/test_rssi_multiclient
+/tests/test_daemon_timing
+/tests/test_event_loop
+/tests/test_data_tx
+/tests/test_config_dispatch
+/tests/test_daemon_lifecycle
+/tests/test_daemon_radio_selection
+/tests/test_unix_socket
+
+# Built/generated binaries
+/tests/test_client_output_queue
+/tests/test_client_nonblocking
+/tests/test_client_queued_broadcast
+/tests/test_client_slow_output
+/tests/test_event_loop_output_flush
+/tests/test_client_read_disconnect_cleanup
+/tests/test_tx_result
+/tests/test_radio_health
+/tests/test_rf_packet
+/tests/test_config_stream_buffer
+/tests/test_config_value
+/tests/test_config_policy
+/tests/test_config_validate
+/tests/test_config_apply_transactional
+
+# Old local/generated interface test binary
+/test_loradaemon_interface
