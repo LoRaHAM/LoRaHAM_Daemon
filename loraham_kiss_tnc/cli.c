@@ -1,5 +1,6 @@
 #include "cli.h"
 #include "config.h"
+#include "version.h"
 
 #include <errno.h>
 #include <getopt.h>
@@ -31,7 +32,13 @@ void lhkt_cli_print_usage(const char *prog)
     printf("      --tx-settle-ms MS    Wait after TX freq switch\n");
     printf("      --tx-return-ms MS    Wait after TX before RX restore\n");
     printf("  -v, --verbose            Verbose output\n");
+    printf("      --version            Print version and exit\n");
     printf("  -h, --help               Show help\n");
+}
+
+void lhkt_cli_print_version(void)
+{
+    printf("%s\n", LHKT_VERSION_TEXT);
 }
 
 static int copy_arg(char *dst, size_t dst_size, const char *src)
@@ -135,7 +142,8 @@ static int parse_cli_args(int argc, char **argv, lhkt_config_t *cfg)
         OPT_TX_FREQ,
         OPT_RX_ONLY,
         OPT_TX_SETTLE_MS,
-        OPT_TX_RETURN_MS
+        OPT_TX_RETURN_MS,
+        OPT_VERSION
     };
 
     static const struct option long_opts[] = {
@@ -149,6 +157,7 @@ static int parse_cli_args(int argc, char **argv, lhkt_config_t *cfg)
         { "rx-only",      no_argument,       0, OPT_RX_ONLY },
         { "tx-settle-ms", required_argument, 0, OPT_TX_SETTLE_MS },
         { "tx-return-ms", required_argument, 0, OPT_TX_RETURN_MS },
+        { "version",      no_argument,       0, OPT_VERSION },
         { "verbose",      no_argument,       0, 'v' },
         { "help",        no_argument,       0, 'h' },
         { 0, 0, 0, 0 }
@@ -175,6 +184,10 @@ static int parse_cli_args(int argc, char **argv, lhkt_config_t *cfg)
 
         case 'h':
             lhkt_cli_print_usage(argv[0]);
+            exit(0);
+
+        case OPT_VERSION:
+            lhkt_cli_print_version();
             exit(0);
 
         case OPT_KISS_HOST:

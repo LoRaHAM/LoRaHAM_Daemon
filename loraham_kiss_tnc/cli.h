@@ -9,6 +9,7 @@ extern "C" {
 
 int lhkt_cli_apply(int argc, char **argv, lhkt_config_t *cfg);
 void lhkt_cli_print_usage(const char *prog);
+void lhkt_cli_print_version(void);
 void lhkt_cli_print_config(const lhkt_config_t *cfg);
 
 #ifdef __cplusplus

@@ -1,5 +1,6 @@
 #include "cli.h"
 #include "config.h"
+#include "version.h"
 
 #include <assert.h>
 #include <stdio.h>
@@ -143,6 +144,100 @@ static void test_missing_config_file(void)
     assert(lhkt_cli_apply(argc_of(argv), argv, &cfg) != LHKT_OK);
 }
 
+
+static int run_cli_child_capture(char **argv, char *out, size_t out_size)
+{
+    int pipefd[2];
+    pid_t pid;
+    int status;
+    size_t used = 0;
+
+    assert(out != NULL);
+    assert(out_size > 0);
+
+    out[0] = '\0';
+
+    /*
+     * Flush inherited stdio buffers before fork(), then read the whole pipe.
+     * Otherwise buffered parent output may be flushed by the child before the
+     * version string and a single read() may miss the expected text.
+     */
+    fflush(NULL);
+
+    assert(pipe(pipefd) == 0);
+
+    pid = fork();
+    assert(pid >= 0);
+
+    if (pid == 0) {
+        lhkt_config_t cfg;
+
+        close(pipefd[0]);
+        dup2(pipefd[1], STDOUT_FILENO);
+        dup2(pipefd[1], STDERR_FILENO);
+        close(pipefd[1]);
+
+        setvbuf(stdout, NULL, _IONBF, 0);
+        setvbuf(stderr, NULL, _IONBF, 0);
+
+        lhkt_config_defaults(&cfg);
+        lhkt_cli_apply(argc_of(argv), argv, &cfg);
+
+        fflush(NULL);
+        _exit(1);
+    }
+
+    close(pipefd[1]);
+
+    for (;;) {
+        char buf[256];
+        ssize_t n = read(pipefd[0], buf, sizeof(buf));
+
+        if (n > 0) {
+            size_t copy = (size_t)n;
+
+            if (used + copy >= out_size)
+                copy = out_size - 1 - used;
+
+            if (copy > 0) {
+                memcpy(out + used, buf, copy);
+                used += copy;
+                out[used] = '\0';
+            }
+
+            continue;
+        }
+
+        if (n == 0)
+            break;
+
+        break;
+    }
+
+    close(pipefd[0]);
+
+    assert(waitpid(pid, &status, 0) == pid);
+    assert(WIFEXITED(status));
+
+    return WEXITSTATUS(status);
+}
+
+
+
+static void test_version_exits_zero_and_prints_version(void)
+{
+    char out[4096];
+    char *argv[] = {
+        "test_cli",
+        "--version",
+        NULL
+    };
+
+    assert(run_cli_child_capture(argv, out, sizeof(out)) == 0);
+    assert(strstr(out, LHKT_VERSION_TEXT) != NULL);
+    assert(strstr(out, LHKT_VERSION) != NULL);
+}
+
 static void test_help_exits_zero(void)
 {
     pid_t pid;
@@ -183,6 +278,7 @@ int main(void)
     test_invalid_port();
     test_missing_config_file();
     test_help_exits_zero();
+    test_version_exits_zero_and_prints_version();
 
     puts("test_cli: OK");
     return 0;

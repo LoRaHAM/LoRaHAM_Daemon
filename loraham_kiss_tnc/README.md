@@ -52,6 +52,7 @@ Options:
       --tx-settle-ms MS    Wait after TX freq switch
       --tx-return-ms MS    Wait after TX before RX restore
   -v, --verbose            Verbose output
+      --version            Print version and exit
   -h, --help               Show help
 
 ```
