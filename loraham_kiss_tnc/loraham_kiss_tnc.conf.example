@@ -1,0 +1,50 @@
+# LoRaHAM KISS TNC sample config
+# CLI options override this file.
+
+kiss_host=127.0.0.1
+kiss_port=8001
+
+
+# Expected socket from running LoRaHAM Daemon
+data_socket=/tmp/lora433.sock
+conf_socket=/tmp/loraconf433.sock
+
+#data_socket=/tmp/lora868.sock
+#conf_socket=/tmp/loraconf868.sock
+
+# Set rx_only=1 for receive-only testing.
+rx_only=0
+
+verbose=0
+
+# Runtime stats print interval in seconds. Set to 0 to disable.
+stats_interval=3600
+
+# TX timing in milliseconds.
+tx_settle_ms=100    # wait after switching to TX frequency before sending.
+tx_return_ms=1000   # wait after TX before switching back to RX frequency.
+
+# LoRaHAM APRS 433 MHz
+rx_freq=433.775
+tx_freq=433.900
+
+# LoRaHAM APRS 868 MHz
+#rx_freq=869.525
+#tx_freq=869.525
+
+# This KISS/APRS bridge always uses LoRa mode.
+# FSK is intentionally not supported here.
+
+# LoRa Parameters
+
+# SET MODE=LORA FREQ=433.775 SF=12 BW=125 CR=5 CRC=1 PREAMBLE=8  SYNC=0x12 LDRO=1    POWER=17   # 433 LoRa/APRS OE/DL-style; long range, slow
+# SET MODE=LORA FREQ=869.525 SF=11 BW=250 CR=5 CRC=1 PREAMBLE=16 SYNC=0x2B LDRO=AUTO POWER=10   # 868 EU long-range / mesh-style; daemon-compatible
+
+sf=12               # spreading factor; valid: 7..12
+bw=125.0            # bandwidth in kHz; valid list above kHz: 7.8, 10.4, 15.6, 20.8, 31.25, 41.7, 62.5, 125.0, 250.0, 500.0
+cr=5                # coding rate; valid: 5..8
+crc=1               # CRC; valid: 0/1
+preamble=8          # preamble length; valid: 6..65535
+syncword=0x12       # sync word; 0x12 private/LoRa-APRS-style, 0x34 LoRaWAN public, 0x2B mesh-style
+ldro=1              # low data rate optimization; use 1 for SF12/BW125, AUTO otherwise
+power=17            # TX power in dBm; valid: 0..20
