@@ -1,0 +1,59 @@
+[Unit]
+Description=LoRaHAM Daemon (%i MHz)
+After=local-fs.target
+# Radio hardware must be present.
+ConditionPathExists=/dev/gpiochip0
+# Shared lock directory is provisioned by tmpfiles.d under /run/lock.
+RequiresMountsFor=/run/lock
+
+[Service]
+Type=simple
+# The daemon runs UNPRIVILEGED as the dedicated system user `loraham`
+# (create it before enabling: see README "systemd deployment"). Hardware
+# access comes from the Raspberry Pi OS device groups spi and gpio, not from
+# root. Client separation (audit P1) is carried by the lock FILES: they are
+# owner-only 0600, so members of the client group loraham can never hold an
+# instance/SPI/GPIO lock, block startup, or force a runtime SPI timeout.
+# Sockets are 0660 loraham:loraham (UMask=0007 + the setgid socket dir), so
+# group members connect normally.
+User=loraham
+Group=loraham
+SupplementaryGroups=spi gpio
+UMask=0007
+
+# Force the production shared lock namespace: the daemon honours
+# LORAHAM_RUNTIME_DIR for direct test/developer runs, but an installed service
+# must always use /run/lock/loraham. Clearing any inherited manager-level value
+# guarantees both band services share one instance/SPI lock namespace.
+UnsetEnvironment=LORAHAM_RUNTIME_DIR LORAHAM_SOCKET_DIR
+
+# Deployable default: install the built binary to /usr/local/bin/loraham_daemon
+# (e.g. `sudo install -m0755 loraham_daemon /usr/local/bin/`). To run from a
+# different path, drop in an override with `sudo systemctl edit
+# loraham-daemon@.service`: set `ExecStart=` (empty) then your `ExecStart=` line.
+#
+# No EnvironmentFile is sourced on purpose: nothing may redirect the shared lock
+# namespace (LORAHAM_RUNTIME_DIR) in production -- that would split the SPI/
+# instance lock namespace between the two band services.
+ExecStart=/usr/local/bin/loraham_daemon --radio %i
+
+Restart=on-failure
+RestartSec=2
+# Stable exit codes (see loraham_runtime.h):
+#   3 = same-band instance already running (duplicate)      -> no restart
+#   4 = STARTUP prerequisite unavailable: lock infrastructure OR a GPIO
+#       open/claim failure (fail closed)                      -> no restart
+#   5 = runtime radio-I/O fatal after operation began (SPI, the bus lock,
+#       or a GPIO call once the radio was live)              -> restart OK
+# 3/4 are not fixed by restarting; 5 (e.g. transient bus fault, wedged peer
+# that has since been power-cycled) legitimately benefits from a restart.
+RestartPreventExitStatus=3 4
+
+KillSignal=SIGTERM
+TimeoutStopSec=30
+# The SPI/instance locks live in the shared /run/lock/loraham, not a private
+# tmp; keep the global namespace so both per-band services share one lock inode.
+PrivateTmp=no
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,70 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+# One group per ref, so a branch can only ever cancel its own runs -- never another
+# branch's, and never another repository's: concurrency groups are scoped to this
+# repository. A second push to the same branch supersedes the first and frees the
+# runner slot instead of leaving a stale run to finish.
+#
+# `main` is the exception: a run on main is release evidence, so it is never
+# cancelled by a later push and always runs to completion.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: ${{ matrix.name }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: normal
+            args: ""
+          - name: strict
+            args: "--strict"
+          - name: asan-ubsan
+            args: "--strict --sanitizer asan-ubsan"
+          - name: tsan
+            args: "--strict --sanitizer tsan"
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes --no-install-recommends \
+            build-essential \
+            cmake \
+            git \
+            liblgpio-dev
+
+      - name: Build pinned RadioLib
+        shell: bash
+        run: |
+          set -euo pipefail
+          source "$GITHUB_WORKSPACE/.github/ci/radiolib.lock"
+          git clone --filter=blob:none "$RADIOLIB_URL" "$RUNNER_TEMP/RadioLib"
+          git -C "$RUNNER_TEMP/RadioLib" checkout --detach "$RADIOLIB_COMMIT"
+          cmake -S "$RUNNER_TEMP/RadioLib" -B "$RUNNER_TEMP/RadioLib/build" \
+            -DBUILD_SHARED_LIBS=OFF
+          cmake --build "$RUNNER_TEMP/RadioLib/build" --parallel 2
+          test -f "$RUNNER_TEMP/RadioLib/build/libRadioLib.a"
+
+      - name: Run tests
+        working-directory: loraham_daemon
+        run: |
+          RADIOLIB_DIR="$RUNNER_TEMP/RadioLib" \
+          TEST_TIMEOUT_SECONDS=90 \
+          ./run_tests.sh ${{ matrix.args }} --timeout-seconds 90

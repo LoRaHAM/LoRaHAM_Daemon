@@ -1,0 +1,34 @@
+# Built test binaries: everything test_* in tests/ except the sources.
+# (Covers current and future test binaries without per-name drift.)
+/tests/test_*
+!/tests/test_*.c
+!/tests/test_*.cpp
+!/tests/test_*.h
+
+# Local test backups created by helper scripts
+/tests/backup-*/
+
+# Optional local daemon binaries built inside this refactor directory
+/loraham_daemon
+
+# Object files and local build leftovers
+*.o
+*.a
+*.so
+*.d
+*.log
+core
+core.*
+
+# The *.d rule above (compiler dependency files) also matches the systemd
+# tmpfiles.d deployment directory -- keep that directory and its rules tracked.
+!/systemd/tmpfiles.d/
+!/systemd/tmpfiles.d/*.conf
+
+# Local editor/temp files
+*~
+*.swp
+*.swo
+
+# Old local/generated interface test binary
+/test_loradaemon_interface
