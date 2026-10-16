@@ -153,6 +153,49 @@ static void test_family_names(void)
                daemon_chip_family_name(DAEMON_CHIP_FAMILY_SX1262), "SX1262");
 }
 
+/* The chip-select mode, the same four rows in every bus user: no kernel
+ * chip selects / CS 8 / CS 7 / any other CS. */
+static void test_spi_soft_cs_keeps_the_profile(void)
+{
+    daemon_set_hardware_preset("loraham");
+    daemon_hardware_profile_resolve(868);
+    expect_int("soft: applied", daemon_hardware_profile_apply_spi(&daemon_hw_profile, false), 1);
+    expect_int("soft: cs stays GPIO 7", daemon_hw_profile.cs, 7);
+    expect_int("soft: spidev0.0", daemon_hw_profile.spi_channel, 0);
+    expect_int("soft: not kernel", daemon_hw_profile.kernel_cs, 0);
+    expect_int("soft: GPIO 7 claimed", claimed_contains(&daemon_hw_profile, 7), 1);
+}
+
+static void test_spi_kernel_cs8_uses_spidev00_without_the_gpio(void)
+{
+    daemon_set_hardware_preset("uputronics-ce0");
+    daemon_hardware_profile_resolve(433);
+    expect_int("ce0: applied", daemon_hardware_profile_apply_spi(&daemon_hw_profile, true), 1);
+    expect_int("ce0: cs still names BCM 8", daemon_hw_profile.cs, 8);
+    expect_int("ce0: spidev0.0", daemon_hw_profile.spi_channel, 0);
+    expect_int("ce0: kernel", daemon_hw_profile.kernel_cs, 1);
+    expect_int("ce0: GPIO 8 not claimed", claimed_contains(&daemon_hw_profile, 8), 0);
+    expect_int("ce0: IRQ 25 still claimed", claimed_contains(&daemon_hw_profile, 25), 1);
+}
+
+static void test_spi_kernel_cs7_uses_spidev01_without_the_gpio(void)
+{
+    daemon_set_hardware_preset("loraham");
+    daemon_hardware_profile_resolve(868);
+    expect_int("ce1: applied", daemon_hardware_profile_apply_spi(&daemon_hw_profile, true), 1);
+    expect_int("ce1: cs still names BCM 7", daemon_hw_profile.cs, 7);
+    expect_int("ce1: spidev0.1", daemon_hw_profile.spi_channel, 1);
+    expect_int("ce1: GPIO 7 not claimed", claimed_contains(&daemon_hw_profile, 7), 0);
+    expect_int("ce1: LED 19 still claimed", claimed_contains(&daemon_hw_profile, 19), 1);
+}
+
+static void test_spi_kernel_cs_refuses_a_cs_off_ce0_ce1(void)
+{
+    daemon_set_hardware_preset("waveshare-sx1262");
+    daemon_hardware_profile_resolve(433);
+    expect_int("cs21: refused", daemon_hardware_profile_apply_spi(&daemon_hw_profile, true), 0);
+}
+
 int main(void)
 {
     test_loraham_433();
@@ -162,6 +205,10 @@ int main(void)
     test_waveshare();
     test_unknown_preset();
     test_family_names();
+    test_spi_soft_cs_keeps_the_profile();
+    test_spi_kernel_cs8_uses_spidev00_without_the_gpio();
+    test_spi_kernel_cs7_uses_spidev01_without_the_gpio();
+    test_spi_kernel_cs_refuses_a_cs_off_ce0_ce1();
 
     printf("\nSummary: ok=%d fail=%d\n", g_ok, g_fail);
     return g_fail ? 1 : 0;

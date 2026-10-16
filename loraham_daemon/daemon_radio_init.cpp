@@ -6,6 +6,7 @@
 #include <RadioLib.h>
 
 #include "locking_pihal.h"
+#include "radio_wiring.h"
 
 #include "daemon_band.h"
 #include "daemon_gpio_lock.h"
@@ -22,11 +23,6 @@
 #include "sx1262_driver.h"
 
 /* --- Profile helpers ------------------------------------------------------ */
-
-static uint32_t hw_pin_or_nc(int pin)
-{
-    return pin < 0 ? RADIOLIB_NC : (uint32_t)pin;
-}
 
 /* Driver selection by profile chip family (is_hf mirrors today's band split:
  * 433 -> SX1278, 868 -> RFM95 within the SX127x family). */
@@ -108,13 +104,9 @@ void lora_init(void) {
 
     daemon_debug_band(tag, "creating objects");
     hw_log_reset_note(tag);
-    radio_controller.hal.reset(new LockingPiHal(0));
-    radio_controller.mod.reset(new Module(
-        radio_controller.hal.get(),
-        hw_pin_or_nc(daemon_hw_profile.cs),
-        hw_pin_or_nc(daemon_hw_profile.irq),
-        hw_pin_or_nc(daemon_hw_profile.rst),
-        hw_pin_or_nc(daemon_hw_profile.gpio)));
+    radio_controller.hal.reset(daemon_radio_hal(daemon_hw_profile));
+    radio_controller.mod.reset(daemon_radio_module(radio_controller.hal.get(),
+                                                   daemon_hw_profile));
     radio_controller.driver.reset(
         hw_driver_create(radio_controller.mod.get(), band->is_hf));
 

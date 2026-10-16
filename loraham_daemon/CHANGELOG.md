@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+- Kernel chip selects: when the kernel owns CE0/CE1 (`/dev/spidev0.1` exists), a radio on BCM 8 or 7 uses
+  `/dev/spidev0.0` or `/dev/spidev0.1` and leaves CS to the kernel; any other CS line is refused at startup.
+
 ## 1.2.0
 
 - `--high-power`: the explicit opt-in for `POWER=20` on an SX127x board. A bare, per-process boot

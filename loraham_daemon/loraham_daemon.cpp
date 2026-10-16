@@ -25,6 +25,7 @@
 #include <stdint.h>
 #include <getopt.h>
 #include <errno.h>
+#include <unistd.h>
 
 #include <RadioLib.h>
 
@@ -37,6 +38,7 @@
 #include "daemon_band.h"
 #include "daemon_radio_selection.h"
 #include "hardware_profile.h"
+#include "loraham_runtime.h"
 #include "daemon_tx_mode_boot.h"
 #include "daemon_cad_monitor_boot.h"
 #include "daemon_cad_rssi_boot.h"
@@ -447,6 +449,23 @@ static bool daemon_parse_args(int argc, char *argv[])
     daemon_debug_ctx("STARTUP", "hardware profile: %s (%s)",
                      daemon_hw_profile.name,
                      daemon_chip_family_name(daemon_hw_profile.family));
+
+    /* Chip selects: /dev/spidev0.1 exists only when the kernel owns CE0/CE1
+     * (no dtoverlay=spi0-0cs). Same answer after every restart, so a refusal
+     * is the non-restartable startup failure. */
+    if (!daemon_hardware_profile_apply_spi(&daemon_hw_profile,
+                                           access("/dev/spidev0.1", F_OK) == 0)) {
+        printf("[SPI] refused: the kernel owns the chip selects (GPIO 8 and 7, "
+               "/dev/spidev0.1 exists) and this board's CS is GPIO %d. Use soft "
+               "chip selects: dtoverlay=spi0-0cs in config.txt, then reboot "
+               "(exit %d).\n", daemon_hw_profile.cs, LORAHAM_EXIT_LOCK_ERROR);
+        exit(LORAHAM_EXIT_LOCK_ERROR);
+    }
+    if (daemon_hw_profile.kernel_cs)
+        printf("[SPI] chip select: kernel CE%d (/dev/spidev0.%d)\n",
+               daemon_hw_profile.spi_channel, daemon_hw_profile.spi_channel);
+    else
+        printf("[SPI] chip select: GPIO %d (/dev/spidev0.0)\n", daemon_hw_profile.cs);
 
 
     return is_daemon;

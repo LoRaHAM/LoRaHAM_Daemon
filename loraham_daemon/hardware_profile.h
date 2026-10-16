@@ -67,6 +67,13 @@ typedef struct {
     bool fsk_stream_available; /* SX127x FSK stream modes need DIO1. */
     bool reset_wired;          /* false: log warm-start note once at init */
 
+    /* SPI: /dev/spidev0.<spi_channel>. With kernel chip selects (spi0 owns
+     * CE0 = GPIO 8 and CE1 = GPIO 7) the kernel drives CS: `cs` still names
+     * the wired line, but it is neither claimed nor passed to RadioLib; see
+     * daemon_hardware_profile_apply_spi(). */
+    int spi_channel;
+    bool kernel_cs;
+
     /* All BCM lines this profile claims (LED + Module pins); for claim-failure
      * diagnostics and docs. */
     int claimed[DAEMON_HW_MAX_CLAIMED];
@@ -89,6 +96,19 @@ const char *daemon_hardware_preset_name(void);
  * "loraham" resolves per band exactly to the pre-profile hardcoded wiring.
  */
 bool daemon_hardware_profile_resolve(int band);
+
+/*
+ * Apply the box's SPI chip-select mode to a resolved profile. `kernel_cs` is
+ * true when the kernel owns CE0/CE1 (/dev/spidev0.1 exists). Then a radio on
+ * GPIO 8 uses spidev0.0 and one on GPIO 7 spidev0.1, with CS = NC: every
+ * register exchange is one kernel message with its CS held by the kernel, so
+ * a process that drives the bus without spi0.lock can no longer interleave
+ * with it. `cs` keeps naming the wired line (diagnostics); it is dropped from
+ * `claimed` and passed to RadioLib as NC. Returns false (refuse to start) for any other CS line in that
+ * mode: spidev0.0 would also assert CE0 = GPIO 8 on its transfers. Without
+ * kernel chip selects the profile is left as it is (channel 0, GPIO CS).
+ */
+bool daemon_hardware_profile_apply_spi(DaemonHardwareProfile *p, bool kernel_cs);
 
 /* Human-readable list of preset names for usage/error text. */
 const char *daemon_hardware_profile_known(void);

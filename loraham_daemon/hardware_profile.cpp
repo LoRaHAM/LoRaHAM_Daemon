@@ -42,7 +42,9 @@ const char *daemon_hardware_profile_known(void)
 
 static void profile_claimed_finish(DaemonHardwareProfile *p)
 {
-    const int candidates[] = { p->cs, p->irq, p->rst, p->gpio,
+    /* With kernel chip selects the CS line is the kernel's, never ours. */
+    const int candidates[] = { p->kernel_cs ? DAEMON_HW_PIN_NC : p->cs,
+                               p->irq, p->rst, p->gpio,
                                p->txen, p->rxen, p->led_pin };
     p->claimed_count = 0;
 
@@ -149,4 +151,18 @@ static bool profile_fill(const char *preset, int band, DaemonHardwareProfile *p)
 bool daemon_hardware_profile_resolve(int band)
 {
     return profile_fill(g_hw_preset, band, &daemon_hw_profile);
+}
+
+bool daemon_hardware_profile_apply_spi(DaemonHardwareProfile *p, bool kernel_cs)
+{
+    p->spi_channel = 0;
+    p->kernel_cs = false;
+    if (!kernel_cs)
+        return true;
+    if (p->cs != 8 && p->cs != 7)
+        return false;
+    p->spi_channel = (p->cs == 8) ? 0 : 1;
+    p->kernel_cs = true;
+    profile_claimed_finish(p);      /* drops CS from the claimed lines */
+    return true;
 }

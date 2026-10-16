@@ -53,13 +53,22 @@ RadioLib may compile but is untested.
 
 Both take effect on the next boot.
 
-Every preset drives CS as a plain GPIO (manual-CS operation), so the kernel must not hold the
-hardware CE lines: `dtparam=spi=on` together with `dtoverlay=spi0-0cs` releases the kernel
-hardware-CE claim on BCM 8/7. This is host configuration, applied once — the daemon never reads or
-writes `config.txt` and cannot check it.
+Two configurations are supported, and the daemon tells them apart by `/dev/spidev0.1`:
 
-All radios use SPI channel 0, `/dev/spidev0.0`. Two daemon processes on one Pi share that bus and
-serialise it per transaction through a process-shared SPI lock.
+- **Soft chip selects** (`dtparam=spi=on` + `dtoverlay=spi0-0cs`, the lines above): the kernel
+  releases CE0/CE1 (BCM 8/7), every preset drives CS as a plain GPIO, and all radios use
+  `/dev/spidev0.0`. Two daemon processes share that bus and serialise it per transaction through a
+  process-shared SPI lock.
+- **Kernel chip selects** (`dtparam=spi=on` alone): the kernel owns CE0 = BCM 8 and CE1 = BCM 7 and
+  creates `/dev/spidev0.1`. A radio wired to BCM 8 then uses `/dev/spidev0.0` and one wired to BCM 7
+  uses `/dev/spidev0.1`. The daemon does not touch the CS line, and the kernel holds it for each
+  transfer. Every register exchange is one such transfer, so another program on the bus that does
+  not take the SPI lock can no longer interleave with it. A board whose CS is any other line
+  (`waveshare-sx1262`, BCM 21) is refused at startup in this mode (exit 4), because a transfer on
+  `/dev/spidev0.0` would also assert CE0.
+
+Other spi0 overlays (`spi0-1cs`, remapped `cs0_pin`/`cs1_pin`) are not supported. The daemon never
+reads or writes `config.txt`; the startup log names the mode it chose (`[SPI] chip select: …`).
 
 With packages, RadioLib and SPI in place, build and run the daemon as described in
 [`../loraham_daemon/README.md`](../loraham_daemon/README.md).
